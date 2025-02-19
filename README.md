@@ -4,7 +4,7 @@
   <img src="mascot.png" width="384"><br>
 <p>
 
-The lightest signal library for Dart, ported from [stackblitz/alien-signals](https://github.com/stackblitz/alien-signals).
+The lightest signal library for Go, ported from [stackblitz/alien-signals](https://github.com/stackblitz/alien-signals).
 
 > [!TIP]
 > `alien_signals` is the fastest signal library currently.
@@ -110,4 +110,4 @@ func TestBasics(t *testing.T) {
 
 ## Credits
 
-This is a Dart port of the excellent [stackblitz/alien-signals](https://github.com/stackblitz/alien-signals) library.
+This is a Go port of the excellent [stackblitz/alien-signals](https://github.com/stackblitz/alien-signals) library.
