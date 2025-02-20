@@ -1,9 +1,11 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
+	"runtime/pprof"
 	"time"
 
 	alien "github.com/delaneyj/alien-signals-go"
@@ -12,9 +14,17 @@ import (
 )
 
 func main() {
+	flag.Parse()
 
-	ww := []int{1, 10, 100, 1000}
-	hh := []int{1, 10, 100, 1000}
+	f, err := os.Create("default.pgo")
+	if err != nil {
+		log.Fatal(err)
+	}
+	pprof.StartCPUProfile(f)
+	defer pprof.StopCPUProfile()
+
+	ww := []int{1, 10, 100, 1000, 10000}
+	hh := []int{1, 10, 100, 1000, 10000}
 
 	getValue := func(x any) int {
 		switch x := x.(type) {
@@ -33,7 +43,7 @@ func main() {
 
 	for _, w := range ww {
 		for _, h := range hh {
-			iters := 10
+			iters := 100
 			tach := tachymeter.New(&tachymeter.Config{Size: iters})
 
 			// fmt.Sprintf("propagate: %dx%d", w, h), func(b *testing.B) {
