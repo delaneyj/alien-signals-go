@@ -13,4 +13,4 @@ tasks:
       - git push origin
       - git tag v{{.VERSION}}
       - git push --tags
-      - GOPROXY=proxy.golang.org go list -m github.com/delaneyj/toolbelt@v{{.VERSION}}
+      - GOPROXY=proxy.golang.org go list -m github.com/delaneyj/alien-signals-go@v{{.VERSION}}
