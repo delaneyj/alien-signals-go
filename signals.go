@@ -2,7 +2,7 @@ package alien
 
 type WriteableSignal[T comparable] struct {
 	baseDependency
-	rs    *reactiveSystem
+	rs    *ReactiveSystem
 	value T
 }
 
@@ -26,7 +26,7 @@ func (s *WriteableSignal[T]) SetValue(v T) {
 	}
 }
 
-func Signal[T comparable](rs *reactiveSystem, initialValue T) *WriteableSignal[T] {
+func Signal[T comparable](rs *ReactiveSystem, initialValue T) *WriteableSignal[T] {
 	s := &WriteableSignal[T]{
 		rs:    rs,
 		value: initialValue,

@@ -1,6 +1,6 @@
 package alien
 
-type reactiveSystem struct {
+type ReactiveSystem struct {
 	batchDepth        int
 	activeSub         subscriber
 	queuedEffects     *effect
@@ -11,31 +11,31 @@ type reactiveSystem struct {
 	pauseStack  []subscriber
 }
 
-func CreateReactiveSystem(onError func(error)) *reactiveSystem {
-	rs := &reactiveSystem{
+func CreateReactiveSystem(onError func(error)) *ReactiveSystem {
+	rs := &ReactiveSystem{
 		onError: onError,
 	}
 
 	return rs
 }
 
-func (rs *reactiveSystem) StartBatch() {
+func (rs *ReactiveSystem) StartBatch() {
 	rs.batchDepth++
 }
 
-func (rs *reactiveSystem) EndBatch() {
+func (rs *ReactiveSystem) EndBatch() {
 	rs.batchDepth--
 	if rs.batchDepth == 0 {
 		rs.processEffectNotifications()
 	}
 }
 
-func (rs *reactiveSystem) PauseTracking() {
+func (rs *ReactiveSystem) PauseTracking() {
 	rs.pauseStack = append(rs.pauseStack, rs.activeSub)
 	rs.activeSub = nil
 }
 
-func (rs *reactiveSystem) ResumeTracking() {
+func (rs *ReactiveSystem) ResumeTracking() {
 	lastIdx := len(rs.pauseStack) - 1
 	rs.activeSub = rs.pauseStack[lastIdx]
 	rs.pauseStack = rs.pauseStack[:lastIdx]
@@ -49,7 +49,7 @@ func (rs *reactiveSystem) ResumeTracking() {
 // @param sub - The subscriber to update.
 // @param flags - The current flag set for this subscriber.
 // @returns `true` if the subscriber is marked as Dirty; otherwise `false`.
-func (rs *reactiveSystem) updateDirtyFlag(sub subscriber, flags subscriberFlags) bool {
+func (rs *ReactiveSystem) updateDirtyFlag(sub subscriber, flags subscriberFlags) bool {
 	if rs.checkDirty(sub.deps()) {
 		sub.setFlags(flags | fDirty)
 		return true
@@ -66,7 +66,7 @@ func (rs *reactiveSystem) updateDirtyFlag(sub subscriber, flags subscriberFlags)
 //
 // @param link - The starting link representing a sequence of pending computeds.
 // @returns `true` if a computed was updated, otherwise `false`.
-func (rs *reactiveSystem) checkDirty(link *link) (dirty bool) {
+func (rs *ReactiveSystem) checkDirty(link *link) (dirty bool) {
 	stack := 0
 
 top:
@@ -158,7 +158,7 @@ top:
 // @param dep - The dependency to be linked.
 // @param sub - The subscriber that depends on this dependency.
 // @returns The newly created link object if the two are not already linked; otherwise `undefined`.
-func (rs *reactiveSystem) link(dep dependency, sub subscriber) *link {
+func (rs *ReactiveSystem) link(dep dependency, sub subscriber) *link {
 	currentDep := sub.depsTail()
 	if currentDep != nil && currentDep.dep == dep {
 		return nil
@@ -192,7 +192,7 @@ func (rs *reactiveSystem) link(dep dependency, sub subscriber) *link {
 // @param checkLink - The link object to validate.
 // @param sub - The subscriber whose link list is being checked.
 // @returns `true` if the link is found in the subscriber's list; otherwise `false`.
-func (rs *reactiveSystem) isValidLink(checkLink *link, sub subscriber) bool {
+func (rs *ReactiveSystem) isValidLink(checkLink *link, sub subscriber) bool {
 	depsTails := sub.depsTail()
 	if depsTails != nil {
 		link := sub.deps()
@@ -223,7 +223,7 @@ func (rs *reactiveSystem) isValidLink(checkLink *link, sub subscriber) bool {
 // @param nextDep - The next link in the subscriber's chain.
 // @param depsTail - The current tail link in the subscriber's chain.
 // @returns The newly created link object.
-func (rs *reactiveSystem) linkNewDep(dep dependency, sub subscriber, nextDep, depsTail *link) *link {
+func (rs *ReactiveSystem) linkNewDep(dep dependency, sub subscriber, nextDep, depsTail *link) *link {
 	newLink := &link{
 		dep:     dep,
 		sub:     sub,
@@ -257,7 +257,7 @@ func (rs *reactiveSystem) linkNewDep(dep dependency, sub subscriber, nextDep, de
 // This function should be called after a signal's value changes.
 //
 // @param link - The starting link from which propagation begins.
-func (rs *reactiveSystem) propagate(link *link) {
+func (rs *ReactiveSystem) propagate(link *link) {
 	targetFlag := fDirty
 	subs := link
 	stack := 0
@@ -367,7 +367,7 @@ top:
 // for later processing.
 //
 // @param link - The head of the linked list to process.
-func (rs *reactiveSystem) shallowPropagate(link *link) {
+func (rs *ReactiveSystem) shallowPropagate(link *link) {
 	for {
 		sub := link.sub
 		subFlags := sub.flags()
@@ -399,7 +399,7 @@ func (rs *reactiveSystem) shallowPropagate(link *link) {
 // sets its flags to indicate it is now tracking dependency links.
 //
 // @param sub - The subscriber to start tracking.
-func (rs *reactiveSystem) startTracking(sub subscriber) {
+func (rs *ReactiveSystem) startTracking(sub subscriber) {
 	sub.setDepsTail(nil)
 	flags := sub.flags()
 	revised := flags & ^(fNotified|fRecursed|fPropagated) | fTracking
@@ -412,7 +412,7 @@ func (rs *reactiveSystem) startTracking(sub subscriber) {
 // updates the subscriber's flags to indicate tracking is complete.
 //
 // @param sub - The subscriber whose tracking is ending.
-func (rs *reactiveSystem) endTracking(sub subscriber) {
+func (rs *ReactiveSystem) endTracking(sub subscriber) {
 	depsTail := sub.depsTail()
 	if depsTail != nil {
 		nextDep := depsTail.nextDep
@@ -436,7 +436,7 @@ func (rs *reactiveSystem) endTracking(sub subscriber) {
 // to the next link in the chain. The link objects are returned to linkPool for reuse.
 //
 // @param link - The head of a linked chain to be cleared.
-func (rs *reactiveSystem) clearTracking(link *link) {
+func (rs *ReactiveSystem) clearTracking(link *link) {
 	for {
 		dep := link.dep
 		nextDep := link.nextDep

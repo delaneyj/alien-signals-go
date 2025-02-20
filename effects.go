@@ -2,7 +2,7 @@ package alien
 
 type ErrFn func() error
 
-func Effect(rs *reactiveSystem, fn ErrFn) ErrFn {
+func Effect(rs *ReactiveSystem, fn ErrFn) ErrFn {
 	e := &effect{
 		fn: fn,
 		baseSubscriber: baseSubscriber{
@@ -24,7 +24,7 @@ func Effect(rs *reactiveSystem, fn ErrFn) ErrFn {
 	}
 }
 
-func (rs *reactiveSystem) runEffect(e *effect) {
+func (rs *ReactiveSystem) runEffect(e *effect) {
 	prevSub := rs.activeSub
 	rs.activeSub = e
 	rs.startTracking(e)
@@ -37,7 +37,7 @@ func (rs *reactiveSystem) runEffect(e *effect) {
 	rs.activeSub = prevSub
 }
 
-func (rs *reactiveSystem) notifyEffect(e *effect) bool {
+func (rs *ReactiveSystem) notifyEffect(e *effect) bool {
 	flags := e.flags()
 	if flags&fEffectScope != 0 {
 		flags := e.flags()
@@ -57,7 +57,7 @@ func (rs *reactiveSystem) notifyEffect(e *effect) bool {
 	return true
 }
 
-func EffectScope(rs *reactiveSystem, scopedFn ErrFn) (stopScope ErrFn) {
+func EffectScope(rs *ReactiveSystem, scopedFn ErrFn) (stopScope ErrFn) {
 	e := &effect{
 		baseSubscriber: baseSubscriber{
 			_flags: fEffect | fEffectScope,
@@ -77,7 +77,7 @@ type effect struct {
 	fn ErrFn
 }
 
-func (rs *reactiveSystem) runEffectScope(e *effect, scopedFn ErrFn) {
+func (rs *ReactiveSystem) runEffectScope(e *effect, scopedFn ErrFn) {
 	prevSub := rs.activeSub
 	rs.activeScope = e
 	rs.startTracking(e)
@@ -101,7 +101,7 @@ func (rs *reactiveSystem) runEffectScope(e *effect, scopedFn ErrFn) {
 //
 // @param sub - The subscriber which may have pending effects.
 // @param flags - The current flags on the subscriber to check.
-func (rs *reactiveSystem) processPendingInnerEffects(sub subscriber, flags subscriberFlags) {
+func (rs *ReactiveSystem) processPendingInnerEffects(sub subscriber, flags subscriberFlags) {
 	if flags&fPendingEffect != 0 {
 		sub.setFlags(flags & ^fPendingEffect)
 		link := sub.deps()
@@ -132,7 +132,7 @@ func (rs *reactiveSystem) processPendingInnerEffects(sub subscriber, flags subsc
 // Iterates through all queued effects, calling notifyEffect on each.
 // If an effect remains partially handled, its flags are updated, and future
 // notifications may be triggered until fully handled.
-func (rs *reactiveSystem) processEffectNotifications() {
+func (rs *ReactiveSystem) processEffectNotifications() {
 	for rs.queuedEffects != nil {
 		e := rs.queuedEffects
 		depsTail := e.depsTail()

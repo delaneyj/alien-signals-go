@@ -4,7 +4,7 @@ type ReadonlySignal[T comparable] struct {
 	baseSubscriber
 	baseDependency
 
-	rs     *reactiveSystem
+	rs     *ReactiveSystem
 	value  T
 	getter func(oldValue T) T
 }
@@ -31,7 +31,7 @@ func (s *ReadonlySignal[T]) cas() (wasDifferent bool) {
 	return wasDifferent
 }
 
-func Computed[T comparable](rs *reactiveSystem, getter func(oldValue T) T) *ReadonlySignal[T] {
+func Computed[T comparable](rs *ReactiveSystem, getter func(oldValue T) T) *ReadonlySignal[T] {
 	c := &ReadonlySignal[T]{
 		rs:     rs,
 		getter: getter,
@@ -47,7 +47,7 @@ type computedAny interface {
 	cas() (wasDifferent bool)
 }
 
-func updateComputed(rs *reactiveSystem, c any) bool {
+func updateComputed(rs *ReactiveSystem, c any) bool {
 	computed, ok := c.(computedAny)
 	if !ok {
 		panic("not a computedAny")
@@ -73,7 +73,7 @@ func updateComputed(rs *reactiveSystem, c any) bool {
 //
 // @param computed - The computed subscriber to update.
 // @param flags - The current flag set for this subscriber.
-func processComputedUpdate(rs *reactiveSystem, computed computedAny, flags subscriberFlags) {
+func processComputedUpdate(rs *ReactiveSystem, computed computedAny, flags subscriberFlags) {
 	if flags&fDirty != 0 || func() bool {
 		isDirty := rs.checkDirty(computed.deps())
 		if isDirty {

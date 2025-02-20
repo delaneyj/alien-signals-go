@@ -6,6 +6,7 @@
 <p>
 
 The lightest signal library for Go, ported from [stackblitz/alien-signals](https://github.com/stackblitz/alien-signals).
+
 [![Go Reference](https://pkg.go.dev/badge/github.com/delaneyj/alien-signals-go.svg)](https://pkg.go.dev/github.com/delaneyj/alien-signals-go)
 
 > [!TIP]
