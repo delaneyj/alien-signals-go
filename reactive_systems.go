@@ -3,8 +3,7 @@ package alien
 import "sync"
 
 type ReactiveSystem struct {
-	mu                *sync.Mutex // thread safety
-	lockAlreadyActive bool        // used in with nested effects
+	mu *sync.Mutex // thread safety
 
 	batchDepth        int
 	activeSub         subscriber

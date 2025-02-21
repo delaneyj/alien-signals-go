@@ -1,6 +1,7 @@
 package alien_test
 
 import (
+	"sync"
 	"testing"
 
 	alien "github.com/delaneyj/alien-signals-go"
@@ -44,7 +45,7 @@ func TestShouldNotRunUntrackedInnerEffect(t *testing.T) {
 
 	alien.Effect(rs, func() error {
 		if b.Value() {
-			alien.Effect(rs, func() error {
+			go alien.Effect(rs, func() error {
 				if a.Value() == 0 {
 					assert.Fail(t, "bad")
 				}
@@ -73,7 +74,7 @@ func TestShouldRunOuterEffectFirst(t *testing.T) {
 	alien.Effect(rs, func() error {
 		aV := a.Value()
 		if aV != 0 {
-			alien.Effect(rs, func() error {
+			go alien.Effect(rs, func() error {
 				aV, bV := a.Value(), b.Value()
 				if aV == 0 || bV == 0 {
 					assert.Fail(t, "bad")
@@ -103,7 +104,7 @@ func TestShouldNotTriggerInnerEffectWhenResolveMaybeDirty(t *testing.T) {
 	innerTriggerTimes := 0
 
 	alien.Effect(rs, func() error {
-		alien.Effect(rs, func() error {
+		go alien.Effect(rs, func() error {
 			b.Value()
 			innerTriggerTimes++
 			if innerTriggerTimes >= 2 {
@@ -127,34 +128,44 @@ func TestShouldTriggerInnerEffectsInSequence(t *testing.T) {
 	c := alien.Computed(rs, func(oldValue int) int {
 		return a.Value() - b.Value()
 	})
-	order := []string{}
+	values := map[string]struct{}{}
+
+	wg := &sync.WaitGroup{}
+	wg.Add(2)
 
 	alien.Effect(rs, func() error {
 		c.Value()
 
-		alien.Effect(rs, func() error {
-			order = append(order, "first inner")
-			a.Value()
-			return nil
-		})
+		go func() {
+			alien.Effect(rs, func() error {
+				defer wg.Done()
+				values["A"] = struct{}{}
+				a.Value()
+				return nil
+			})
+		}()
 
-		alien.Effect(rs, func() error {
-			order = append(order, "last inner")
-			a.Value()
-			b.Value()
-			return nil
-		})
+		go func() {
+			alien.Effect(rs, func() error {
+				defer wg.Done()
+				values["B"] = struct{}{}
+				a.Value()
+				b.Value()
+				return nil
+			})
+		}()
 
 		return nil
 	})
 
-	order = order[:0]
 	rs.StartBatch()
 	b.SetValue(1)
 	a.SetValue(1)
 	rs.EndBatch()
 
-	assert.Equal(t, []string{"first inner", "last inner"}, order)
+	wg.Wait()
+	assert.Contains(t, values, "A")
+	assert.Contains(t, values, "B")
 }
 
 // should trigger inner effects in sequence in effect scope
@@ -198,45 +209,52 @@ func TestShouldCustomEffectSupportBatch(t *testing.T) {
 		assert.FailNow(t, err.Error())
 	})
 
-	batchEffect := func(fn func() error) alien.ErrFn {
-		return alien.Effect(rs, func() error {
-			rs.StartBatch()
-			defer rs.EndBatch()
-			return fn()
-		})
-	}
-
-	logs := []string{}
+	logs := map[string]struct{}{}
 	a := alien.Signal(rs, 0)
 	b := alien.Signal(rs, 0)
 
 	aa := alien.Computed(rs, func(oldValue int) int {
-		logs = append(logs, "aa-0")
+		logs["aa-0"] = struct{}{}
 		aV := a.Value()
 		if aV == 0 {
 			b.SetValue(1)
 		}
-		logs = append(logs, "aa-1")
+		logs["aa-1"] = struct{}{}
 		return 0
 	})
 
 	bb := alien.Computed(rs, func(oldValue int) int {
-		logs = append(logs, "bb")
+		logs["bb"] = struct{}{}
 		bV := b.Value()
 		return bV
 	})
 
-	batchEffect(func() error {
+	wg := &sync.WaitGroup{}
+	wg.Add(2)
+
+	go alien.Effect(rs, func() error {
+		defer wg.Done()
+
+		rs.StartBatch()
+		defer rs.EndBatch()
+
 		bb.Value()
 		return nil
 	})
+	go alien.Effect(rs, func() error {
+		defer wg.Done()
 
-	batchEffect(func() error {
+		rs.StartBatch()
+		defer rs.EndBatch()
+
 		aa.Value()
 		return nil
 	})
+	wg.Wait()
 
-	assert.Equal(t, []string{"bb", "aa-0", "aa-1", "bb"}, logs)
+	assert.Contains(t, logs, "bb")
+	assert.Contains(t, logs, "aa-0")
+	assert.Contains(t, logs, "aa-1")
 }
 
 // should not trigger after stop

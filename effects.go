@@ -3,14 +3,8 @@ package alien
 type ErrFn func() error
 
 func Effect(rs *ReactiveSystem, fn ErrFn) ErrFn {
-	if !rs.lockAlreadyActive {
-		rs.mu.Lock()
-		rs.lockAlreadyActive = true
-		defer func() {
-			rs.lockAlreadyActive = false
-			rs.mu.Unlock()
-		}()
-	}
+	rs.mu.Lock()
+	defer rs.mu.Unlock()
 
 	e := &effect{
 		fn: fn,
