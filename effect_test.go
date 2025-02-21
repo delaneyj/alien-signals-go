@@ -1,7 +1,6 @@
 package alien_test
 
 import (
-	"log"
 	"testing"
 
 	alien "github.com/delaneyj/alien-signals-go"
@@ -76,8 +75,7 @@ func TestShouldRunOuterEffectFirst(t *testing.T) {
 		if aV != 0 {
 			alien.Effect(rs, func() error {
 				aV, bV := a.Value(), b.Value()
-				log.Printf("aV: %d, bV: %d", aV, bV)
-				if aV == 0 {
+				if aV == 0 || bV == 0 {
 					assert.Fail(t, "bad")
 				}
 				return nil

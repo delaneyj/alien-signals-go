@@ -1,6 +1,11 @@
 package alien
 
+import "sync"
+
 type ReactiveSystem struct {
+	mu                *sync.Mutex // thread safety
+	lockAlreadyActive bool        // used in with nested effects
+
 	batchDepth        int
 	activeSub         subscriber
 	queuedEffects     *effect
@@ -13,6 +18,7 @@ type ReactiveSystem struct {
 
 func CreateReactiveSystem(onError func(error)) *ReactiveSystem {
 	rs := &ReactiveSystem{
+		mu:      &sync.Mutex{},
 		onError: onError,
 	}
 

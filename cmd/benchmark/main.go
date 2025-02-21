@@ -23,8 +23,8 @@ func main() {
 	pprof.StartCPUProfile(f)
 	defer pprof.StopCPUProfile()
 
-	ww := []int{1, 10, 100, 1000, 10000}
-	hh := []int{1, 10, 100, 1000, 10000}
+	ww := []int{1, 10, 100, 1000}
+	hh := []int{1, 10, 100, 1000}
 
 	getValue := func(x any) int {
 		switch x := x.(type) {

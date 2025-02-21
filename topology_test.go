@@ -2,7 +2,6 @@ package alien_test
 
 import (
 	"fmt"
-	"log"
 	"testing"
 	"time"
 
@@ -166,26 +165,19 @@ func TestShouldOnlyUpdateEverySignalOnceJaggedDiamondTails(t *testing.T) {
 
 	a := alien.Signal(rs, "a")
 	b := alien.Computed(rs, func(oldValue string) string {
-		aV := a.Value()
-		log.Printf("b: %s", aV)
-		return aV
+		return a.Value()
 	})
 	c := alien.Computed(rs, func(oldValue string) string {
-		aV := a.Value()
-		log.Printf("c: %s", aV)
-		return aV
+		return a.Value()
 	})
 	d := alien.Computed(rs, func(oldValue string) string {
-		cV := c.Value()
-		log.Printf("d: %s", cV)
-		return cV
+		return c.Value()
 	})
 
 	eCallCount, eTime := 0, time.Time{}
 	e := alien.Computed(rs, func(oldValue string) string {
 		bV, dV := b.Value(), d.Value()
 		eV := bV + " " + dV
-		log.Printf("e: %s", eV)
 		eCallCount++
 		eTime = time.Now()
 		return eV
@@ -194,7 +186,6 @@ func TestShouldOnlyUpdateEverySignalOnceJaggedDiamondTails(t *testing.T) {
 	fCallCount, fTime := 0, time.Time{}
 	f := alien.Computed(rs, func(oldValue string) string {
 		ev := e.Value()
-		log.Printf("f: %s", ev)
 		fCallCount++
 		fTime = time.Now()
 		return ev
@@ -203,7 +194,6 @@ func TestShouldOnlyUpdateEverySignalOnceJaggedDiamondTails(t *testing.T) {
 	gCallCount, gTime := 0, time.Time{}
 	g := alien.Computed(rs, func(oldValue string) string {
 		ev := e.Value()
-		log.Printf("g: %s", ev)
 		gCallCount++
 		gTime = time.Now()
 		return ev

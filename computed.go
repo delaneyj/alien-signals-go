@@ -32,6 +32,9 @@ func (s *ReadonlySignal[T]) cas() (wasDifferent bool) {
 }
 
 func Computed[T comparable](rs *ReactiveSystem, getter func(oldValue T) T) *ReadonlySignal[T] {
+	rs.mu.Lock()
+	defer rs.mu.Unlock()
+
 	c := &ReadonlySignal[T]{
 		rs:     rs,
 		getter: getter,

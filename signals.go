@@ -27,6 +27,9 @@ func (s *WriteableSignal[T]) SetValue(v T) {
 }
 
 func Signal[T comparable](rs *ReactiveSystem, initialValue T) *WriteableSignal[T] {
+	rs.mu.Lock()
+	defer rs.mu.Unlock()
+
 	s := &WriteableSignal[T]{
 		rs:    rs,
 		value: initialValue,
