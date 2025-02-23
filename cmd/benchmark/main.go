@@ -47,7 +47,7 @@ func main() {
 			tach := tachymeter.New(&tachymeter.Config{Size: iters})
 
 			// fmt.Sprintf("propagate: %dx%d", w, h), func(b *testing.B) {
-			rs := alien.CreateReactiveSystem(func(err error) {
+			rs := alien.CreateReactiveSystem(func(from alien.SignalAware, err error) {
 				log.Panic(err)
 			})
 			src := alien.Signal(rs, 1)

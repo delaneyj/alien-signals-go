@@ -9,8 +9,8 @@ The lightest signal library for Go, ported from [stackblitz/alien-signals](https
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/delaneyj/alien-signals-go.svg)](https://pkg.go.dev/github.com/delaneyj/alien-signals-go)
 
-> [!TIP]
-> `alien_signals` is the fastest signal library currently.
+> [!CAUTION]
+> This is not thread safe.  Use CQRS or other patterns to manage state in a concurrent environment.
 
 ## Benchmarks against original TypeScript implementation
 Node with JIT
@@ -80,17 +80,13 @@ Go
 
 ## Basic usage
 
+## Usage
+
+#### Basic APIs
+
 ```go
-import (
-	"testing"
-
-	alien "github.com/delaneyj/alien-signals-go"
-	"github.com/stretchr/testify/assert"
-)
-
-// from README
-func TestBasics(t *testing.T) {
-	rs := alien.CreateReactiveSystem(func(err error) {
+func TestBasicUsage(t *testing.T) {
+	rs := alien.CreateReactiveSystem(func(from alien.SignalAware, err error) {
 		assert.FailNow(t, err.Error())
 	})
 	count := alien.Signal(rs, 1)
@@ -99,17 +95,42 @@ func TestBasics(t *testing.T) {
 	})
 
 	stopEffect := alien.Effect(rs, func() error {
+		log.Printf("Count is: %d", count.Value())
 		return nil
 	})
 	defer stopEffect()
 
 	assert.Equal(t, 2, doubleCount.Value())
-
 	count.SetValue(2)
-
 	assert.Equal(t, 4, doubleCount.Value())
 }
 ```
+
+#### Effect Scope
+
+```go
+func TestBasicEffect(t *testing.T) {
+	rs := alien.CreateReactiveSystem(func(from alien.SignalAware, err error) {
+		assert.FailNow(t, err.Error())
+	})
+	count := alien.Signal(rs, 1)
+
+	stopScope := alien.EffectScope(rs, func() error {
+		alien.Effect(rs, func() error {
+			log.Printf("Count in scope: %d", count.Value())
+			return nil
+		}) // Console: Count in scope: 1
+		count.SetValue(2) // Console: Count in scope: 2
+
+		return nil
+	})
+
+	stopScope()
+	count.SetValue(3) // No console output
+}
+
+```
+
 
 ## Credits
 

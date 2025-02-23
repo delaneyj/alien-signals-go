@@ -3,10 +3,7 @@ package alien
 type ErrFn func() error
 
 func Effect(rs *ReactiveSystem, fn ErrFn) ErrFn {
-	rs.mu.Lock()
-	defer rs.mu.Unlock()
-
-	e := &effect{
+	e := &EffectRunner{
 		fn: fn,
 		baseSubscriber: baseSubscriber{
 			_flags: fEffect,
@@ -27,20 +24,20 @@ func Effect(rs *ReactiveSystem, fn ErrFn) ErrFn {
 	}
 }
 
-func (rs *ReactiveSystem) runEffect(e *effect) {
+func (rs *ReactiveSystem) runEffect(e *EffectRunner) {
 	prevSub := rs.activeSub
 	rs.activeSub = e
 	rs.startTracking(e)
 	if err := e.fn(); err != nil {
 		if rs.onError != nil {
-			rs.onError(err)
+			rs.onError(e, err)
 		}
 	}
 	rs.endTracking(e)
 	rs.activeSub = prevSub
 }
 
-func (rs *ReactiveSystem) notifyEffect(e *effect) bool {
+func (rs *ReactiveSystem) notifyEffect(e *EffectRunner) bool {
 	flags := e.flags()
 	if flags&fEffectScope != 0 {
 		flags := e.flags()
@@ -61,7 +58,7 @@ func (rs *ReactiveSystem) notifyEffect(e *effect) bool {
 }
 
 func EffectScope(rs *ReactiveSystem, scopedFn ErrFn) (stopScope ErrFn) {
-	e := &effect{
+	e := &EffectRunner{
 		baseSubscriber: baseSubscriber{
 			_flags: fEffect | fEffectScope,
 		},
@@ -74,20 +71,22 @@ func EffectScope(rs *ReactiveSystem, scopedFn ErrFn) (stopScope ErrFn) {
 	}
 }
 
-type effect struct {
+type EffectRunner struct {
 	baseSubscriber
 	baseDependency
 	fn ErrFn
 }
 
-func (rs *ReactiveSystem) runEffectScope(e *effect, scopedFn ErrFn) {
+func (e *EffectRunner) isSignalAware() {}
+
+func (rs *ReactiveSystem) runEffectScope(e *EffectRunner, scopedFn ErrFn) {
 	prevSub := rs.activeSub
 	rs.activeScope = e
 	rs.startTracking(e)
 
 	if err := scopedFn(); err != nil {
 		if rs.onError != nil {
-			rs.onError(err)
+			rs.onError(e, err)
 		}
 	}
 
@@ -114,7 +113,7 @@ func (rs *ReactiveSystem) processPendingInnerEffects(sub subscriber, flags subsc
 			if ok {
 				flags := depSub.flags()
 				if flags&fEffect != 0 && flags&fPropagated != 0 {
-					effect, ok := depSub.(*effect)
+					effect, ok := depSub.(*EffectRunner)
 					if !ok {
 						panic("not an effect")
 					}
@@ -142,7 +141,7 @@ func (rs *ReactiveSystem) processEffectNotifications() {
 		queueNext := depsTail.nextDep
 		if queueNext != nil {
 			depsTail.nextDep = nil
-			effect, ok := queueNext.sub.(*effect)
+			effect, ok := queueNext.sub.(*EffectRunner)
 			if !ok {
 				panic("not an effect")
 			}
@@ -157,8 +156,8 @@ func (rs *ReactiveSystem) processEffectNotifications() {
 	}
 }
 
-func mustEffect(sub subscriber) *effect {
-	e, ok := sub.(*effect)
+func mustEffect(sub subscriber) *EffectRunner {
+	e, ok := sub.(*EffectRunner)
 	if !ok {
 		panic("not an effect")
 	}

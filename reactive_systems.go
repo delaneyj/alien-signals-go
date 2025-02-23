@@ -1,25 +1,24 @@
 package alien
 
-import "sync"
+type OnErrorFunc func(from SignalAware, err error)
 
 type ReactiveSystem struct {
-	mu *sync.Mutex // thread safety
-
 	batchDepth        int
 	activeSub         subscriber
-	queuedEffects     *effect
-	queuedEffectsTail *effect
+	queuedEffects     *EffectRunner
+	queuedEffectsTail *EffectRunner
 
 	activeScope subscriber
-	onError     func(error)
+	onError     OnErrorFunc
 	pauseStack  []subscriber
 }
 
-func CreateReactiveSystem(onError func(error)) *ReactiveSystem {
-	rs := &ReactiveSystem{
-		mu:      &sync.Mutex{},
-		onError: onError,
-	}
+type SignalAware interface {
+	isSignalAware()
+}
+
+func CreateReactiveSystem(onError OnErrorFunc) *ReactiveSystem {
+	rs := &ReactiveSystem{onError: onError}
 
 	return rs
 }

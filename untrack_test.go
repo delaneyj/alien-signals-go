@@ -9,7 +9,7 @@ import (
 
 // should pause tracking
 func TestShouldPauseTracking(t *testing.T) {
-	rs := alien.CreateReactiveSystem(func(err error) {
+	rs := alien.CreateReactiveSystem(func(from alien.SignalAware, err error) {
 		t.FailNow()
 	})
 

@@ -9,6 +9,8 @@ type ReadonlySignal[T comparable] struct {
 	getter func(oldValue T) T
 }
 
+func (s *ReadonlySignal[T]) isSignalAware() {}
+
 func (s *ReadonlySignal[T]) Value() T {
 	flags := s._flags
 	if flags&(fDirty|fPendingComputed) != 0 {
@@ -32,9 +34,6 @@ func (s *ReadonlySignal[T]) cas() (wasDifferent bool) {
 }
 
 func Computed[T comparable](rs *ReactiveSystem, getter func(oldValue T) T) *ReadonlySignal[T] {
-	rs.mu.Lock()
-	defer rs.mu.Unlock()
-
 	c := &ReadonlySignal[T]{
 		rs:     rs,
 		getter: getter,

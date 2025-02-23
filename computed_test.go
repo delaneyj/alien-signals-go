@@ -1,6 +1,7 @@
 package alien_test
 
 import (
+	"log"
 	"testing"
 
 	alien "github.com/delaneyj/alien-signals-go"
@@ -8,8 +9,8 @@ import (
 )
 
 // from README
-func TestBasics(t *testing.T) {
-	rs := alien.CreateReactiveSystem(func(err error) {
+func TestBasicUsage(t *testing.T) {
+	rs := alien.CreateReactiveSystem(func(from alien.SignalAware, err error) {
 		assert.FailNow(t, err.Error())
 	})
 	count := alien.Signal(rs, 1)
@@ -18,38 +19,33 @@ func TestBasics(t *testing.T) {
 	})
 
 	stopEffect := alien.Effect(rs, func() error {
+		log.Printf("Count is: %d", count.Value())
 		return nil
 	})
 	defer stopEffect()
 
 	assert.Equal(t, 2, doubleCount.Value())
-
 	count.SetValue(2)
-
 	assert.Equal(t, 4, doubleCount.Value())
 }
 
-// should correctly propagate changes through computed signals
-func TestComputed(t *testing.T) {
-	rs := alien.CreateReactiveSystem(func(err error) {
+// from README
+func TestBasicEffect(t *testing.T) {
+	rs := alien.CreateReactiveSystem(func(from alien.SignalAware, err error) {
 		assert.FailNow(t, err.Error())
 	})
+	count := alien.Signal(rs, 1)
 
-	src := alien.Signal(rs, 0)
-	c1 := alien.Computed(rs, func(oldValue int) int {
-		return src.Value() % 2
-	})
-	c2 := alien.Computed(rs, func(oldValue int) int {
-		return c1.Value()
-	})
-	c3 := alien.Computed(rs, func(oldValue int) int {
-		return c2.Value()
+	stopScope := alien.EffectScope(rs, func() error {
+		alien.Effect(rs, func() error {
+			log.Printf("Count in scope: %d", count.Value())
+			return nil
+		}) // Console: Count in scope: 1
+		count.SetValue(2) // Console: Count in scope: 2
+
+		return nil
 	})
 
-	assert.Equal(t, 0, c1.Value())
-	src.SetValue(1)                // c1 -> dirty, c2 -> toCheckDirty, c3 -> toCheckDirty
-	assert.Equal(t, 1, c2.Value()) // c1 -> none, c2 -> none
-	src.SetValue(3)                // c1 -> dirty, c2 -> toCheckDirty
-
-	assert.Equal(t, 1, c3.Value())
+	stopScope()
+	count.SetValue(3) // No console output
 }

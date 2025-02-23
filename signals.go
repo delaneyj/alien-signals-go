@@ -6,6 +6,8 @@ type WriteableSignal[T comparable] struct {
 	value T
 }
 
+func (s *WriteableSignal[T]) isSignalAware() {}
+
 func (s *WriteableSignal[T]) Value() T {
 	if s.rs.activeSub != nil {
 		s.rs.link(s, s.rs.activeSub)
@@ -27,9 +29,6 @@ func (s *WriteableSignal[T]) SetValue(v T) {
 }
 
 func Signal[T comparable](rs *ReactiveSystem, initialValue T) *WriteableSignal[T] {
-	rs.mu.Lock()
-	defer rs.mu.Unlock()
-
 	s := &WriteableSignal[T]{
 		rs:    rs,
 		value: initialValue,

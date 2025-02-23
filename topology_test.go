@@ -11,7 +11,7 @@ import (
 )
 
 func TestTopologyDropAbaUpdates(t *testing.T) {
-	rs := alien.CreateReactiveSystem(func(err error) {
+	rs := alien.CreateReactiveSystem(func(from alien.SignalAware, err error) {
 		assert.FailNow(t, err.Error())
 	})
 
@@ -46,7 +46,7 @@ func TestTopologyDropAbaUpdates(t *testing.T) {
 }
 
 func TestShouldOnlyUpdateEverySignalOnceDiamond(t *testing.T) {
-	rs := alien.CreateReactiveSystem(func(err error) {
+	rs := alien.CreateReactiveSystem(func(from alien.SignalAware, err error) {
 		assert.FailNow(t, err.Error())
 	})
 
@@ -82,7 +82,7 @@ func TestShouldOnlyUpdateEverySignalOnceDiamond(t *testing.T) {
 }
 
 func TestShouldOnlyUpdateEverySignalOnceDiamondTail(t *testing.T) {
-	rs := alien.CreateReactiveSystem(func(err error) {
+	rs := alien.CreateReactiveSystem(func(from alien.SignalAware, err error) {
 		assert.FailNow(t, err.Error())
 	})
 
@@ -121,7 +121,7 @@ func TestShouldOnlyUpdateEverySignalOnceDiamondTail(t *testing.T) {
 }
 
 func TestBailOutIfResultIsTheSame(t *testing.T) {
-	rs := alien.CreateReactiveSystem(func(err error) {
+	rs := alien.CreateReactiveSystem(func(from alien.SignalAware, err error) {
 		assert.FailNow(t, err.Error())
 	})
 
@@ -148,7 +148,7 @@ func TestBailOutIfResultIsTheSame(t *testing.T) {
 }
 
 func TestShouldOnlyUpdateEverySignalOnceJaggedDiamondTails(t *testing.T) {
-	rs := alien.CreateReactiveSystem(func(err error) {
+	rs := alien.CreateReactiveSystem(func(from alien.SignalAware, err error) {
 		assert.FailNow(t, err.Error())
 	})
 
@@ -230,7 +230,7 @@ func TestShouldOnlyUpdateEverySignalOnceJaggedDiamondTails(t *testing.T) {
 }
 
 func TestShouldOnlySubscribeToSignalsListenedTo(t *testing.T) {
-	rs := alien.CreateReactiveSystem(func(err error) {
+	rs := alien.CreateReactiveSystem(func(from alien.SignalAware, err error) {
 		assert.FailNow(t, err.Error())
 	})
 
@@ -256,7 +256,7 @@ func TestShouldOnlySubscribeToSignalsListenedTo(t *testing.T) {
 }
 
 func TestShouldOnlySubscribeToSignalsListenedToII(t *testing.T) {
-	rs := alien.CreateReactiveSystem(func(err error) {
+	rs := alien.CreateReactiveSystem(func(from alien.SignalAware, err error) {
 		assert.FailNow(t, err.Error())
 	})
 
@@ -311,7 +311,7 @@ func TestShouldEnsureSubsUpdate(t *testing.T) {
 	//  B     *C <- returns same value every time
 	//   \   /
 	//     D
-	rs := alien.CreateReactiveSystem(func(err error) {
+	rs := alien.CreateReactiveSystem(func(from alien.SignalAware, err error) {
 		assert.FailNow(t, err.Error())
 	})
 	a := alien.Signal(rs, "a")
@@ -344,7 +344,7 @@ func TestShouldEnsureSubsUpdateEvenIfTwoDepsUnmarkIt(t *testing.T) {
 	//  B *C *D
 	//   \ | /
 	//     E
-	rs := alien.CreateReactiveSystem(func(err error) {
+	rs := alien.CreateReactiveSystem(func(from alien.SignalAware, err error) {
 		assert.FailNow(t, err.Error())
 	})
 	a := alien.Signal(rs, "a")
@@ -381,7 +381,7 @@ func TestShouldEnsureSubsUpdateEvenIfAllDepsUnmarkIt(t *testing.T) {
 	// *B     *C
 	//   \   /
 	//     D
-	rs := alien.CreateReactiveSystem(func(err error) {
+	rs := alien.CreateReactiveSystem(func(from alien.SignalAware, err error) {
 		assert.FailNow(t, err.Error())
 	})
 	a := alien.Signal(rs, "a")
@@ -408,7 +408,7 @@ func TestShouldEnsureSubsUpdateEvenIfAllDepsUnmarkIt(t *testing.T) {
 }
 
 func TestShouldKeepGraphConsistentOnActivationErrors(t *testing.T) {
-	rs := alien.CreateReactiveSystem(func(err error) {
+	rs := alien.CreateReactiveSystem(func(from alien.SignalAware, err error) {
 		t.Error(err)
 	})
 
@@ -426,7 +426,7 @@ func TestShouldKeepGraphConsistentOnActivationErrors(t *testing.T) {
 }
 
 func TestShouldKeepGraphConsistentOnComputedErrors(t *testing.T) {
-	rs := alien.CreateReactiveSystem(func(err error) {
+	rs := alien.CreateReactiveSystem(func(from alien.SignalAware, err error) {
 		t.Error(err)
 	})
 
