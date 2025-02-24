@@ -109,6 +109,10 @@ func (s String) String() string {
 	return string(s)
 }
 
+func FromString(s string) String {
+	return String(s)
+}
+
 type Int int
 
 func (i Int) Equals(other Int) bool {
@@ -117,6 +121,10 @@ func (i Int) Equals(other Int) bool {
 
 func (i Int) Int() int {
 	return int(i)
+}
+
+func FromInt(i int) Int {
+	return Int(i)
 }
 
 type Float64 float64
@@ -129,6 +137,10 @@ func (f Float64) Float64() float64 {
 	return float64(f)
 }
 
+func FromFloat64(f float64) Float64 {
+	return Float64(f)
+}
+
 type Bool bool
 
 func (b Bool) Equals(other Bool) bool {
@@ -139,6 +151,10 @@ func (b Bool) Bool() bool {
 	return bool(b)
 }
 
+func FromBool(b bool) Bool {
+	return Bool(b)
+}
+
 type Slice[T comparable] []T
 
 func (s Slice[T]) Equals(other Slice[T]) bool {
@@ -147,4 +163,8 @@ func (s Slice[T]) Equals(other Slice[T]) bool {
 
 func (s Slice[T]) Slice() []T {
 	return []T(s)
+}
+
+func FromSlice[T comparable](s []T) Slice[T] {
+	return Slice[T](s)
 }
