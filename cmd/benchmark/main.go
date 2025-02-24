@@ -26,11 +26,11 @@ func main() {
 	ww := []int{1, 10, 100, 1000}
 	hh := []int{1, 10, 100, 1000}
 
-	getValue := func(x any) int {
+	getValue := func(x any) alien.Int {
 		switch x := x.(type) {
-		case *alien.WriteableSignal[int]:
+		case *alien.WriteableSignal[alien.Int]:
 			return x.Value() + 1
-		case *alien.ReadonlySignal[int]:
+		case *alien.ReadonlySignal[alien.Int]:
 			return x.Value() + 1
 		default:
 			panic("unknown type")
@@ -50,13 +50,13 @@ func main() {
 			rs := alien.CreateReactiveSystem(func(from alien.SignalAware, err error) {
 				log.Panic(err)
 			})
-			src := alien.Signal(rs, 1)
+			src := alien.SignalInt(rs, 1)
 			for i := 0; i < w; i++ {
 				var last any
 				last = src
 				for j := 0; j < h; j++ {
 					prev := last
-					last = alien.Computed(rs, func(oldValue int) int {
+					last = alien.Computed(rs, func(oldValue alien.Int) alien.Int {
 						return getValue(prev)
 					})
 				}

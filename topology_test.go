@@ -22,22 +22,22 @@ func TestTopologyDropAbaUpdates(t *testing.T) {
 	//     C
 	//     |
 	//     D
-	a := alien.Signal(rs, 2)
-	b := alien.Computed(rs, func(oldValue int) int {
+	a := alien.SignalInt(rs, 2)
+	b := alien.Computed(rs, func(oldValue alien.Int) alien.Int {
 		return a.Value() - 1
 	})
-	c := alien.Computed(rs, func(oldValue int) int {
+	c := alien.Computed(rs, func(oldValue alien.Int) alien.Int {
 		return a.Value() + b.Value()
 	})
 	callCount := 0
-	d := alien.Computed(rs, func(oldValue string) string {
+	d := alien.Computed(rs, func(oldValue alien.String) alien.String {
 		callCount++
-		return fmt.Sprintf("d: %d", c.Value())
+		return alien.String(fmt.Sprintf("d: %d", c.Value()))
 	})
 
 	// Trigger read
 	dActual := d.Value()
-	assert.Equal(t, "d: 3", dActual)
+	assert.Equal(t, "d: 3", dActual.String())
 	assert.Equal(t, 1, callCount)
 
 	a.SetValue(4)
@@ -58,26 +58,26 @@ func TestShouldOnlyUpdateEverySignalOnceDiamond(t *testing.T) {
 	//   \   /
 	//     D
 
-	a := alien.Signal(rs, "a")
-	b := alien.Computed(rs, func(oldValue string) string {
+	a := alien.SignalString(rs, "a")
+	b := alien.Computed(rs, func(oldValue alien.String) alien.String {
 		return a.Value()
 	})
-	c := alien.Computed(rs, func(oldValue string) string {
+	c := alien.Computed(rs, func(oldValue alien.String) alien.String {
 		return a.Value()
 	})
 
 	callCount := 0
-	d := alien.Computed(rs, func(oldValue string) string {
+	d := alien.Computed(rs, func(oldValue alien.String) alien.String {
 		callCount++
 		return b.Value() + " " + c.Value()
 	})
 
-	assert.Equal(t, "a a", d.Value())
+	assert.Equal(t, "a a", d.Value().String())
 	assert.Equal(t, 1, callCount)
 	callCount = 0
 
 	a.SetValue("aa")
-	assert.Equal(t, "aa aa", d.Value())
+	assert.Equal(t, "aa aa", d.Value().String())
 	assert.Equal(t, 1, callCount)
 }
 
@@ -95,28 +95,28 @@ func TestShouldOnlyUpdateEverySignalOnceDiamondTail(t *testing.T) {
 	//     |
 	//     E
 
-	a := alien.Signal(rs, "a")
-	b := alien.Computed(rs, func(oldValue string) string {
+	a := alien.SignalString(rs, "a")
+	b := alien.Computed(rs, func(oldValue alien.String) alien.String {
 		return a.Value()
 	})
-	c := alien.Computed(rs, func(oldValue string) string {
+	c := alien.Computed(rs, func(oldValue alien.String) alien.String {
 		return a.Value()
 	})
-	d := alien.Computed(rs, func(oldValue string) string {
+	d := alien.Computed(rs, func(oldValue alien.String) alien.String {
 		return b.Value() + " " + c.Value()
 	})
 
 	eCallCount := 0
-	e := alien.Computed(rs, func(oldValue string) string {
+	e := alien.Computed(rs, func(oldValue alien.String) alien.String {
 		eCallCount++
 		return d.Value()
 	})
 
-	assert.Equal(t, "a a", e.Value())
+	assert.Equal(t, "a a", e.Value().String())
 	assert.Equal(t, 1, eCallCount)
 
 	a.SetValue("aa")
-	assert.Equal(t, "aa aa", e.Value())
+	assert.Equal(t, "aa aa", e.Value().String())
 	assert.Equal(t, 2, eCallCount)
 }
 
@@ -127,23 +127,23 @@ func TestBailOutIfResultIsTheSame(t *testing.T) {
 
 	// Bail out if value of "B" never changes
 	// A->B->C
-	a := alien.Signal(rs, "a")
-	b := alien.Computed(rs, func(oldValue string) string {
+	a := alien.SignalString(rs, "a")
+	b := alien.Computed(rs, func(oldValue alien.String) alien.String {
 		a.Value()
 		return "foo"
 	})
 
 	callCount := 0
-	c := alien.Computed(rs, func(oldValue string) string {
+	c := alien.Computed(rs, func(oldValue alien.String) alien.String {
 		callCount++
 		return b.Value()
 	})
 
-	assert.Equal(t, "foo", c.Value())
+	assert.Equal(t, "foo", c.Value().String())
 	assert.Equal(t, 1, callCount)
 
 	a.SetValue("aa")
-	assert.Equal(t, "foo", c.Value())
+	assert.Equal(t, "foo", c.Value().String())
 	assert.Equal(t, 1, callCount)
 }
 
@@ -163,19 +163,19 @@ func TestShouldOnlyUpdateEverySignalOnceJaggedDiamondTails(t *testing.T) {
 	//   /   \
 	//  F     G
 
-	a := alien.Signal(rs, "a")
-	b := alien.Computed(rs, func(oldValue string) string {
+	a := alien.SignalString(rs, "a")
+	b := alien.Computed(rs, func(oldValue alien.String) alien.String {
 		return a.Value()
 	})
-	c := alien.Computed(rs, func(oldValue string) string {
+	c := alien.Computed(rs, func(oldValue alien.String) alien.String {
 		return a.Value()
 	})
-	d := alien.Computed(rs, func(oldValue string) string {
+	d := alien.Computed(rs, func(oldValue alien.String) alien.String {
 		return c.Value()
 	})
 
 	eCallCount, eTime := 0, time.Time{}
-	e := alien.Computed(rs, func(oldValue string) string {
+	e := alien.Computed(rs, func(oldValue alien.String) alien.String {
 		bV, dV := b.Value(), d.Value()
 		eV := bV + " " + dV
 		eCallCount++
@@ -184,7 +184,7 @@ func TestShouldOnlyUpdateEverySignalOnceJaggedDiamondTails(t *testing.T) {
 	})
 
 	fCallCount, fTime := 0, time.Time{}
-	f := alien.Computed(rs, func(oldValue string) string {
+	f := alien.Computed(rs, func(oldValue alien.String) alien.String {
 		ev := e.Value()
 		fCallCount++
 		fTime = time.Now()
@@ -192,34 +192,34 @@ func TestShouldOnlyUpdateEverySignalOnceJaggedDiamondTails(t *testing.T) {
 	})
 
 	gCallCount, gTime := 0, time.Time{}
-	g := alien.Computed(rs, func(oldValue string) string {
+	g := alien.Computed(rs, func(oldValue alien.String) alien.String {
 		ev := e.Value()
 		gCallCount++
 		gTime = time.Now()
 		return ev
 	})
 
-	require.Equal(t, "a a", f.Value())
+	require.Equal(t, "a a", f.Value().String())
 	require.Equal(t, 1, fCallCount)
-	require.Equal(t, "a a", g.Value())
+	require.Equal(t, "a a", g.Value().String())
 	require.Equal(t, 1, gCallCount)
 	eCallCount, fCallCount, gCallCount = 0, 0, 0
 
 	a.SetValue("b")
-	require.Equal(t, "b b", e.Value())
+	require.Equal(t, "b b", e.Value().String())
 	require.Equal(t, 1, eCallCount)
-	require.Equal(t, "b b", f.Value())
+	require.Equal(t, "b b", f.Value().String())
 	require.Equal(t, 1, fCallCount)
-	require.Equal(t, "b b", g.Value())
+	require.Equal(t, "b b", g.Value().String())
 	require.Equal(t, 1, gCallCount)
 	eCallCount, fCallCount, gCallCount = 0, 0, 0
 
 	a.SetValue("c")
-	require.Equal(t, "c c", e.Value())
+	require.Equal(t, "c c", e.Value().String())
 	require.Equal(t, 1, eCallCount)
-	require.Equal(t, "c c", f.Value())
+	require.Equal(t, "c c", f.Value().String())
 	require.Equal(t, 1, fCallCount)
-	require.Equal(t, "c c", g.Value())
+	require.Equal(t, "c c", g.Value().String())
 	require.Equal(t, 1, gCallCount)
 
 	// top to bottom
@@ -237,21 +237,21 @@ func TestShouldOnlySubscribeToSignalsListenedTo(t *testing.T) {
 	//    *A
 	//   /   \
 	// *B     C <- we don't listen to C
-	a := alien.Signal(rs, "a")
-	b := alien.Computed(rs, func(oldValue string) string {
+	a := alien.SignalString(rs, "a")
+	b := alien.Computed(rs, func(oldValue alien.String) alien.String {
 		return a.Value()
 	})
 	callCount := 0
-	alien.Computed(rs, func(oldValue string) string {
+	alien.Computed(rs, func(oldValue alien.String) alien.String {
 		callCount++
 		return a.Value()
 	})
 
-	assert.Equal(t, "a", b.Value())
+	assert.Equal(t, "a", b.Value().String())
 	assert.Equal(t, 0, callCount)
 
 	a.SetValue("aa")
-	assert.Equal(t, "aa", b.Value())
+	assert.Equal(t, "aa", b.Value().String())
 	assert.Equal(t, 0, callCount)
 }
 
@@ -268,29 +268,29 @@ func TestShouldOnlySubscribeToSignalsListenedToII(t *testing.T) {
 	// *B     D <- we don't listen to C
 	//  |
 	// *C
-	a := alien.Signal(rs, "a")
+	a := alien.SignalString(rs, "a")
 	bCallCount := 0
-	b := alien.Computed(rs, func(oldValue string) string {
+	b := alien.Computed(rs, func(oldValue alien.String) alien.String {
 		bCallCount++
 		return a.Value()
 	})
 	cCallCount := 0
-	c := alien.Computed(rs, func(oldValue string) string {
+	c := alien.Computed(rs, func(oldValue alien.String) alien.String {
 		cCallCount++
 		return b.Value()
 	})
-	d := alien.Computed(rs, func(oldValue string) string {
+	d := alien.Computed(rs, func(oldValue alien.String) alien.String {
 		return a.Value()
 	})
 
 	result := ""
 	unsub := alien.Effect(rs, func() error {
-		result = c.Value()
+		result = c.Value().String()
 		return nil
 	})
 
 	assert.Equal(t, "a", result)
-	assert.Equal(t, "a", d.Value())
+	assert.Equal(t, "a", d.Value().String())
 
 	bCallCount, cCallCount = 0, 0
 	unsub()
@@ -298,7 +298,7 @@ func TestShouldOnlySubscribeToSignalsListenedToII(t *testing.T) {
 	a.SetValue("aa")
 	assert.Equal(t, 0, bCallCount)
 	assert.Equal(t, 0, cCallCount)
-	assert.Equal(t, "aa", d.Value())
+	assert.Equal(t, "aa", d.Value().String())
 }
 
 func TestShouldEnsureSubsUpdate(t *testing.T) {
@@ -314,25 +314,25 @@ func TestShouldEnsureSubsUpdate(t *testing.T) {
 	rs := alien.CreateReactiveSystem(func(from alien.SignalAware, err error) {
 		assert.FailNow(t, err.Error())
 	})
-	a := alien.Signal(rs, "a")
-	b := alien.Computed(rs, func(oldValue string) string {
+	a := alien.SignalString(rs, "a")
+	b := alien.Computed(rs, func(oldValue alien.String) alien.String {
 		return a.Value()
 	})
-	c := alien.Computed(rs, func(oldValue string) string {
+	c := alien.Computed(rs, func(oldValue alien.String) alien.String {
 		a.Value()
 		return "c"
 	})
 	dCallCount := 0
-	d := alien.Computed(rs, func(oldValue string) string {
+	d := alien.Computed(rs, func(oldValue alien.String) alien.String {
 		dCallCount++
 		return b.Value() + " " + c.Value()
 	})
 
-	assert.Equal(t, "a c", d.Value())
+	assert.Equal(t, "a c", d.Value().String())
 	assert.Equal(t, 1, dCallCount)
 
 	a.SetValue("aa")
-	assert.Equal(t, "aa c", d.Value())
+	assert.Equal(t, "aa c", d.Value().String())
 }
 
 func TestShouldEnsureSubsUpdateEvenIfTwoDepsUnmarkIt(t *testing.T) {
@@ -347,29 +347,29 @@ func TestShouldEnsureSubsUpdateEvenIfTwoDepsUnmarkIt(t *testing.T) {
 	rs := alien.CreateReactiveSystem(func(from alien.SignalAware, err error) {
 		assert.FailNow(t, err.Error())
 	})
-	a := alien.Signal(rs, "a")
-	b := alien.Computed(rs, func(oldValue string) string {
+	a := alien.SignalString(rs, "a")
+	b := alien.Computed(rs, func(oldValue alien.String) alien.String {
 		return a.Value()
 	})
-	c := alien.Computed(rs, func(oldValue string) string {
+	c := alien.Computed(rs, func(oldValue alien.String) alien.String {
 		a.Value()
 		return "c"
 	})
-	d := alien.Computed(rs, func(oldValue string) string {
+	d := alien.Computed(rs, func(oldValue alien.String) alien.String {
 		a.Value()
 		return "d"
 	})
 	eCallCount := 0
-	e := alien.Computed(rs, func(oldValue string) string {
+	e := alien.Computed(rs, func(oldValue alien.String) alien.String {
 		eCallCount++
 		return b.Value() + " " + c.Value() + " " + d.Value()
 	})
 
-	assert.Equal(t, "a c d", e.Value())
+	assert.Equal(t, "a c d", e.Value().String())
 	assert.Equal(t, 1, eCallCount)
 
 	a.SetValue("aa")
-	assert.Equal(t, "aa c d", e.Value())
+	assert.Equal(t, "aa c d", e.Value().String())
 	assert.Equal(t, 2, eCallCount)
 }
 
@@ -384,22 +384,22 @@ func TestShouldEnsureSubsUpdateEvenIfAllDepsUnmarkIt(t *testing.T) {
 	rs := alien.CreateReactiveSystem(func(from alien.SignalAware, err error) {
 		assert.FailNow(t, err.Error())
 	})
-	a := alien.Signal(rs, "a")
-	b := alien.Computed(rs, func(oldValue string) string {
+	a := alien.SignalString(rs, "a")
+	b := alien.Computed(rs, func(oldValue alien.String) alien.String {
 		a.Value()
 		return "b"
 	})
-	c := alien.Computed(rs, func(oldValue string) string {
+	c := alien.Computed(rs, func(oldValue alien.String) alien.String {
 		a.Value()
 		return "c"
 	})
 	dCallCount := 0
-	d := alien.Computed(rs, func(oldValue string) string {
+	d := alien.Computed(rs, func(oldValue alien.String) alien.String {
 		dCallCount++
 		return b.Value() + " " + c.Value()
 	})
 
-	assert.Equal(t, "b c", d.Value())
+	assert.Equal(t, "b c", d.Value().String())
 	assert.Equal(t, 1, dCallCount)
 	dCallCount = 0
 
@@ -412,8 +412,8 @@ func TestShouldKeepGraphConsistentOnActivationErrors(t *testing.T) {
 		t.Error(err)
 	})
 
-	a := alien.Signal(rs, 0)
-	b := alien.Computed(rs, func(oldValue int) int {
+	a := alien.SignalInt(rs, 0)
+	b := alien.Computed(rs, func(oldValue alien.Int) alien.Int {
 		panic("fail")
 	})
 
@@ -422,7 +422,7 @@ func TestShouldKeepGraphConsistentOnActivationErrors(t *testing.T) {
 	})
 
 	a.SetValue(1)
-	assert.Equal(t, 1, a.Value())
+	assert.Equal(t, 1, a.Value().Int())
 }
 
 func TestShouldKeepGraphConsistentOnComputedErrors(t *testing.T) {
@@ -430,11 +430,11 @@ func TestShouldKeepGraphConsistentOnComputedErrors(t *testing.T) {
 		t.Error(err)
 	})
 
-	a := alien.Signal(rs, 0)
-	b := alien.Computed(rs, func(oldValue int) int {
+	a := alien.SignalInt(rs, 0)
+	b := alien.Computed(rs, func(oldValue alien.Int) alien.Int {
 		panic("fail")
 	})
-	c := alien.Computed(rs, func(oldValue int) int {
+	c := alien.Computed(rs, func(oldValue alien.Int) alien.Int {
 		return a.Value()
 	})
 
@@ -443,5 +443,5 @@ func TestShouldKeepGraphConsistentOnComputedErrors(t *testing.T) {
 	})
 
 	a.SetValue(1)
-	assert.Equal(t, 1, c.Value())
+	assert.Equal(t, 1, c.Value().Int())
 }
