@@ -34,6 +34,12 @@ func (rs *ReactiveSystem) EndBatch() {
 	}
 }
 
+func (rs *ReactiveSystem) Batch(cb func()) {
+	rs.StartBatch()
+	defer rs.EndBatch()
+	cb()
+}
+
 func (rs *ReactiveSystem) PauseTracking() {
 	rs.pauseStack = append(rs.pauseStack, rs.activeSub)
 	rs.activeSub = nil

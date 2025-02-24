@@ -13,8 +13,8 @@ func TestBasicUsage(t *testing.T) {
 	rs := alien.CreateReactiveSystem(func(from alien.SignalAware, err error) {
 		assert.FailNow(t, err.Error())
 	})
-	count := alien.SignalInt(rs, 1)
-	doubleCount := alien.Computed(rs, func(oldValue alien.Int) alien.Int {
+	count := alien.Signal(rs, 1)
+	doubleCount := alien.Computed(rs, func(oldValue int) int {
 		return count.Value() * 2
 	})
 
@@ -24,9 +24,9 @@ func TestBasicUsage(t *testing.T) {
 	})
 	defer stopEffect()
 
-	assert.Equal(t, 2, doubleCount.Value().Int())
+	assert.Equal(t, 2, doubleCount.Value())
 	count.SetValue(2)
-	assert.Equal(t, 4, doubleCount.Value().Int())
+	assert.Equal(t, 4, doubleCount.Value())
 }
 
 // from README
@@ -34,7 +34,7 @@ func TestBasicEffect(t *testing.T) {
 	rs := alien.CreateReactiveSystem(func(from alien.SignalAware, err error) {
 		assert.FailNow(t, err.Error())
 	})
-	count := alien.SignalInt(rs, 1)
+	count := alien.Signal(rs, 1)
 
 	stopScope := alien.EffectScope(rs, func() error {
 		alien.Effect(rs, func() error {

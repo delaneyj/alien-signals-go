@@ -13,17 +13,17 @@ func TestShouldPauseTracking(t *testing.T) {
 		t.FailNow()
 	})
 
-	src := alien.SignalInt(rs, 0)
-	c := alien.Computed(rs, func(oldValue alien.Int) alien.Int {
+	src := alien.Signal(rs, 0)
+	c := alien.Computed(rs, func(oldValue int) int {
 		rs.PauseTracking()
 		value := src.Value()
 		rs.ResumeTracking()
 		return value
 	})
 	actualC := c.Value()
-	assert.Equal(t, 0, actualC.Int())
+	assert.Equal(t, 0, actualC)
 
 	src.SetValue(1)
 	actualC = c.Value()
-	assert.Equal(t, 0, actualC.Int())
+	assert.Equal(t, 0, actualC)
 }

@@ -1,6 +1,6 @@
 package alien
 
-type WriteableSignal[T Equality[T]] struct {
+type WriteableSignal[T comparable] struct {
 	baseDependency
 	rs    *ReactiveSystem
 	value T
@@ -16,7 +16,7 @@ func (s *WriteableSignal[T]) Value() T {
 }
 
 func (s *WriteableSignal[T]) SetValue(v T) {
-	if s.value.Equals(v) {
+	if s.value == v {
 		return
 	}
 	s.value = v
@@ -29,26 +29,10 @@ func (s *WriteableSignal[T]) SetValue(v T) {
 	}
 }
 
-func Signal[T Equality[T]](rs *ReactiveSystem, initialValue T) *WriteableSignal[T] {
+func Signal[T comparable](rs *ReactiveSystem, initialValue T) *WriteableSignal[T] {
 	s := &WriteableSignal[T]{
 		rs:    rs,
 		value: initialValue,
 	}
 	return s
-}
-
-func SignalInt(rs *ReactiveSystem, initialValue int) *WriteableSignal[Int] {
-	return Signal(rs, Int(initialValue))
-}
-
-func SignalString(rs *ReactiveSystem, initialValue string) *WriteableSignal[String] {
-	return Signal(rs, String(initialValue))
-}
-
-func SignalBool(rs *ReactiveSystem, initialValue bool) *WriteableSignal[Bool] {
-	return Signal(rs, Bool(initialValue))
-}
-
-func SignalSlice[T comparable](rs *ReactiveSystem, initialValue ...T) *WriteableSignal[Slice[T]] {
-	return Signal(rs, Slice[T](initialValue))
 }

@@ -15,8 +15,8 @@ func TestEffectClearSubsWhenUntracked(t *testing.T) {
 	rs := alien.CreateReactiveSystem(func(from alien.SignalAware, err error) {
 		assert.FailNow(t, err.Error())
 	})
-	a := alien.SignalInt(rs, 1)
-	b := alien.Computed(rs, func(oldValue alien.Int) alien.Int {
+	a := alien.Signal(rs, 1)
+	b := alien.Computed(rs, func(oldValue int) int {
 		bRunTimes++
 		return a.Value() * 2
 	})
@@ -38,8 +38,8 @@ func TestShouldNotRunUntrackedInnerEffect(t *testing.T) {
 	rs := alien.CreateReactiveSystem(func(from alien.SignalAware, err error) {
 		assert.FailNow(t, err.Error())
 	})
-	a := alien.SignalInt(rs, 3)
-	b := alien.Computed(rs, func(oldValue alien.Bool) alien.Bool {
+	a := alien.Signal(rs, 3)
+	b := alien.Computed(rs, func(oldValue bool) bool {
 		return a.Value() > 0
 	})
 
@@ -68,8 +68,8 @@ func TestShouldRunOuterEffectFirst(t *testing.T) {
 	rs := alien.CreateReactiveSystem(func(from alien.SignalAware, err error) {
 		assert.FailNow(t, err.Error())
 	})
-	a := alien.SignalInt(rs, 1)
-	b := alien.SignalInt(rs, 1)
+	a := alien.Signal(rs, 1)
+	b := alien.Signal(rs, 1)
 
 	alien.Effect(rs, func() error {
 		aV := a.Value()
@@ -97,8 +97,8 @@ func TestShouldNotTriggerInnerEffectWhenResolveMaybeDirty(t *testing.T) {
 	rs := alien.CreateReactiveSystem(func(from alien.SignalAware, err error) {
 		assert.FailNow(t, err.Error())
 	})
-	a := alien.SignalInt(rs, 0)
-	b := alien.Computed(rs, func(oldValue alien.Bool) alien.Bool {
+	a := alien.Signal(rs, 0)
+	b := alien.Computed(rs, func(oldValue bool) bool {
 		return a.Value()%2 == 0
 	})
 
@@ -124,9 +124,9 @@ func TestShouldTriggerInnerEffectsInSequence(t *testing.T) {
 	rs := alien.CreateReactiveSystem(func(from alien.SignalAware, err error) {
 		assert.FailNow(t, err.Error())
 	})
-	a := alien.SignalInt(rs, 0)
-	b := alien.SignalInt(rs, 0)
-	c := alien.Computed(rs, func(oldValue alien.Int) alien.Int {
+	a := alien.Signal(rs, 0)
+	b := alien.Signal(rs, 0)
+	c := alien.Computed(rs, func(oldValue int) int {
 		return a.Value() - b.Value()
 	})
 	order := []string{}
@@ -164,8 +164,8 @@ func TestShouldTriggerInnerEffectsInSequenceInEffectScope(t *testing.T) {
 	rs := alien.CreateReactiveSystem(func(from alien.SignalAware, err error) {
 		assert.FailNow(t, err.Error())
 	})
-	a := alien.SignalInt(rs, 0)
-	b := alien.SignalInt(rs, 0)
+	a := alien.Signal(rs, 0)
+	b := alien.Signal(rs, 0)
 	order := []string{}
 
 	alien.EffectScope(rs, func() error {
@@ -209,10 +209,10 @@ func TestShouldCustomEffectSupportBatch(t *testing.T) {
 	}
 
 	logs := []string{}
-	a := alien.SignalInt(rs, 0)
-	b := alien.SignalInt(rs, 0)
+	a := alien.Signal(rs, 0)
+	b := alien.Signal(rs, 0)
 
-	aa := alien.Computed(rs, func(oldValue alien.Int) alien.Int {
+	aa := alien.Computed(rs, func(oldValue int) int {
 		logs = append(logs, "aa-0")
 		aV := a.Value()
 		if aV == 0 {
@@ -222,7 +222,7 @@ func TestShouldCustomEffectSupportBatch(t *testing.T) {
 		return 0
 	})
 
-	bb := alien.Computed(rs, func(oldValue alien.Int) alien.Int {
+	bb := alien.Computed(rs, func(oldValue int) int {
 		logs = append(logs, "bb")
 		bV := b.Value()
 		return bV
@@ -247,7 +247,7 @@ func TestShouldNotTriggerAfterStop(t *testing.T) {
 		assert.FailNow(t, err.Error())
 	})
 
-	count := alien.SignalInt(rs, 0)
+	count := alien.Signal(rs, 0)
 
 	triggers := 0
 
