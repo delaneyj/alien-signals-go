@@ -126,6 +126,7 @@ top:
 
 					return false
 				}
+				return true
 			}
 		} else if depFlags&(fComputed|fPendingComputed) == fComputed|fPendingComputed {
 			dep.flags = depFlags & ^fPendingComputed
@@ -275,7 +276,7 @@ top:
 			if subSubs != nil {
 				current = subSubs
 				if subSubs.nextSub != nil {
-					branchs = &OneWayLink_link{target: current, linked: branchs}
+					branchs = &OneWayLink_link{target: next, linked: branchs}
 					branchDepth++
 					next = current.nextSub
 					targetFlag = fPendingComputed
