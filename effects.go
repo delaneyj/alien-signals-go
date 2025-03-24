@@ -136,22 +136,13 @@ func (rs *ReactiveSystem) processPendingInnerEffects(sub subscriber, flags subsc
 // notifications may be triggered until fully handled.
 func (rs *ReactiveSystem) processEffectNotifications() {
 	for rs.queuedEffects != nil {
-		e := rs.queuedEffects
-		depsTail := e.depsTail()
-		queueNext := depsTail.nextDep
-		if queueNext != nil {
-			depsTail.nextDep = nil
-			effect, ok := queueNext.sub.(*EffectRunner)
-			if !ok {
-				panic("not an effect")
-			}
-			rs.queuedEffects = effect
-		} else {
-			rs.queuedEffects = nil
+		effect := rs.queuedEffects.target
+		rs.queuedEffects = rs.queuedEffects.linked
+		if rs.queuedEffects == nil {
 			rs.queuedEffectsTail = nil
 		}
-		if !rs.notifyEffect(e) {
-			e.setFlags(e.flags() & ^fNotified)
+		if !rs.notifyEffect(effect) {
+			effect.setFlags(effect.flags() & ^fNotified)
 		}
 	}
 }
