@@ -5,8 +5,8 @@ type OnErrorFunc func(from SignalAware, err error)
 type ReactiveSystem struct {
 	batchDepth        int
 	activeSub         subscriber
-	queuedEffects     *OneWayLink_EffectRunner
-	queuedEffectsTail *OneWayLink_EffectRunner
+	queuedEffects     *OneWayLink_subscriber
+	queuedEffectsTail *OneWayLink_subscriber
 
 	activeScope subscriber
 	onError     OnErrorFunc
@@ -17,14 +17,14 @@ type SignalAware interface {
 	isSignalAware()
 }
 
-type OneWayLink_EffectRunner struct {
-	target *EffectRunner
-	linked *OneWayLink_EffectRunner
+type OneWayLink_subscriber struct {
+	target subscriber
+	linked *OneWayLink_subscriber
 }
 
-type OneWayLink struct {
+type OneWayLink_link struct {
 	target *link
-	linked *OneWayLink
+	linked *OneWayLink_link
 }
 
 func CreateReactiveSystem(onError OnErrorFunc) *ReactiveSystem {
@@ -87,7 +87,7 @@ func (rs *ReactiveSystem) updateDirtyFlag(sub subscriber, flags subscriberFlags)
 // @param link - The starting link representing a sequence of pending computeds.
 // @returns `true` if a computed was updated, otherwise `false`.
 func (rs *ReactiveSystem) checkDirty(current *link) bool {
-	prevLinks := (*OneWayLink)(nil)
+	prevLinks := (*OneWayLink_link)(nil)
 	checkDepth := 0
 
 top:
@@ -252,7 +252,7 @@ func (rs *ReactiveSystem) linkNewDep(dep dependency, sub subscriber, nextDep, de
 // @param link - The starting link from which propagation begins.
 func (rs *ReactiveSystem) propagate(current *link) {
 	next := current.nextSub
-	branchs := (*OneWayLink)(nil)
+	branchs := (*OneWayLink_link)(nil)
 	branchDepth := 0
 	targetFlag := fDirty
 
@@ -283,7 +283,7 @@ top:
 			if subSubs != nil {
 				current = subSubs
 				if subSubs.nextSub != nil {
-					branchs = &OneWayLink{target: current, linked: branchs}
+					branchs = &OneWayLink_link{target: current, linked: branchs}
 					branchDepth++
 					next = current.nextSub
 					targetFlag = fPendingComputed
@@ -297,24 +297,22 @@ top:
 				continue
 			}
 			if subFlags&fEffect != 0 {
-				effect := mustEffect(sub)
 				if rs.queuedEffectsTail != nil {
-					rs.queuedEffectsTail.linked = &OneWayLink_EffectRunner{target: effect}
+					rs.queuedEffectsTail.linked = &OneWayLink_subscriber{target: sub}
 					rs.queuedEffectsTail = rs.queuedEffectsTail.linked
 				} else {
-					rs.queuedEffects = &OneWayLink_EffectRunner{target: effect}
+					rs.queuedEffects = &OneWayLink_subscriber{target: sub}
 					rs.queuedEffectsTail = rs.queuedEffects
 				}
 			}
 		} else if subFlags&(fTracking|targetFlag) == 0 {
 			sub.setFlags(subFlags | targetFlag | fNotified)
 			if subFlags&(fEffect|fNotified) == fEffect {
-				effect := mustEffect(sub)
 				if rs.queuedEffectsTail != nil {
-					rs.queuedEffectsTail.linked = &OneWayLink_EffectRunner{target: effect}
+					rs.queuedEffectsTail.linked = &OneWayLink_subscriber{target: sub}
 					rs.queuedEffectsTail = rs.queuedEffectsTail.linked
 				} else {
-					rs.queuedEffects = &OneWayLink_EffectRunner{target: effect}
+					rs.queuedEffects = &OneWayLink_subscriber{target: sub}
 					rs.queuedEffectsTail = rs.queuedEffects
 				}
 			}
@@ -366,12 +364,11 @@ func (rs *ReactiveSystem) shallowPropagate(link *link) {
 		if justPendingDirty == fPendingComputed {
 			sub.setFlags(subFlags | fDirty | fNotified)
 			if subFlags&(fEffect|fNotified) == fEffect {
-				effect := mustEffect(sub)
 				if rs.queuedEffectsTail != nil {
-					rs.queuedEffectsTail.linked = &OneWayLink_EffectRunner{target: effect}
+					rs.queuedEffectsTail.linked = &OneWayLink_subscriber{target: sub}
 					rs.queuedEffectsTail = rs.queuedEffectsTail.linked
 				} else {
-					rs.queuedEffects = &OneWayLink_EffectRunner{target: effect}
+					rs.queuedEffects = &OneWayLink_subscriber{target: sub}
 					rs.queuedEffectsTail = rs.queuedEffects
 				}
 			}

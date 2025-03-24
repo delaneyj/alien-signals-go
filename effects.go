@@ -37,7 +37,8 @@ func (rs *ReactiveSystem) runEffect(e *EffectRunner) {
 	rs.activeSub = prevSub
 }
 
-func (rs *ReactiveSystem) notifyEffect(e *EffectRunner) bool {
+func (rs *ReactiveSystem) notifyEffect(sub subscriber) bool {
+	e := mustEffect(sub)
 	flags := e.flags()
 	if flags&fEffectScope != 0 {
 		flags := e.flags()
