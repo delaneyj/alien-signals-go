@@ -5,84 +5,86 @@ type ErrFn func() error
 func Effect(rs *ReactiveSystem, fn ErrFn) ErrFn {
 	e := &EffectRunner{
 		fn: fn,
-		baseSubscriber: baseSubscriber{
-			_flags: fEffect,
+		signal: signal{
+			flags: fEffect,
 		},
 	}
+	signal := &e.signal
+	signal.ref = e
 
 	if rs.activeSub != nil {
-		rs.link(e, rs.activeSub)
+		rs.link(signal, rs.activeSub)
 	} else if rs.activeScope != nil {
-		rs.link(e, rs.activeScope)
+		rs.link(signal, rs.activeScope)
 	}
-	rs.runEffect(e)
+	rs.runEffect(e, signal)
 
 	return func() error {
-		rs.startTracking(e)
-		rs.endTracking(e)
+		rs.startTracking(signal)
+		rs.endTracking(signal)
 		return nil
 	}
 }
 
-func (rs *ReactiveSystem) runEffect(e *EffectRunner) {
+func (rs *ReactiveSystem) runEffect(e *EffectRunner, signal *signal) {
 	prevSub := rs.activeSub
-	rs.activeSub = e
-	rs.startTracking(e)
+	rs.activeSub = signal
+	rs.startTracking(signal)
 	if err := e.fn(); err != nil {
 		if rs.onError != nil {
 			rs.onError(e, err)
 		}
 	}
-	rs.endTracking(e)
+	rs.endTracking(signal)
 	rs.activeSub = prevSub
 }
 
-func (rs *ReactiveSystem) notifyEffect(e *EffectRunner) bool {
-	flags := e.flags()
+func (rs *ReactiveSystem) notifyEffect(signal *signal) bool {
+	flags := signal.flags
 	if flags&fEffectScope != 0 {
-		flags := e.flags()
 		if flags&fPendingEffect != 0 {
-			rs.processPendingInnerEffects(e, e.flags())
+			rs.processPendingInnerEffects(signal, flags)
 			return true
 		}
 		return false
 	}
 
 	if flags&fDirty != 0 ||
-		(flags&fPendingComputed != 0 && rs.updateDirtyFlag(e, flags)) {
-		rs.runEffect(e)
+		(flags&fPendingComputed != 0 && rs.updateDirtyFlag(signal, flags)) {
+		rs.runEffect(signal.ref.(*EffectRunner), signal)
 	} else {
-		rs.processPendingInnerEffects(e, flags)
+		rs.processPendingInnerEffects(signal, flags)
 	}
 	return true
 }
 
 func EffectScope(rs *ReactiveSystem, scopedFn ErrFn) (stopScope ErrFn) {
 	e := &EffectRunner{
-		baseSubscriber: baseSubscriber{
-			_flags: fEffect | fEffectScope,
+		signal: signal{
+			flags: fEffect | fEffectScope,
 		},
 	}
-	rs.runEffectScope(e, scopedFn)
+	signal := &e.signal
+	signal.ref = e
+	rs.runEffectScope(e, signal, scopedFn)
 	return func() error {
-		rs.startTracking(e)
-		rs.endTracking(e)
+		rs.startTracking(signal)
+		rs.endTracking(signal)
 		return nil
 	}
 }
 
 type EffectRunner struct {
-	baseSubscriber
-	baseDependency
+	signal
 	fn ErrFn
 }
 
 func (e *EffectRunner) isSignalAware() {}
 
-func (rs *ReactiveSystem) runEffectScope(e *EffectRunner, scopedFn ErrFn) {
+func (rs *ReactiveSystem) runEffectScope(e *EffectRunner, signal *signal, scopedFn ErrFn) {
 	prevSub := rs.activeSub
-	rs.activeScope = e
-	rs.startTracking(e)
+	rs.activeScope = signal
+	rs.startTracking(signal)
 
 	if err := scopedFn(); err != nil {
 		if rs.onError != nil {
@@ -91,7 +93,7 @@ func (rs *ReactiveSystem) runEffectScope(e *EffectRunner, scopedFn ErrFn) {
 	}
 
 	rs.activeScope = prevSub
-	rs.endTracking(e)
+	rs.endTracking(signal)
 }
 
 // Ensures all pending internal effects for the given subscriber are processed.
@@ -103,22 +105,15 @@ func (rs *ReactiveSystem) runEffectScope(e *EffectRunner, scopedFn ErrFn) {
 //
 // @param sub - The subscriber which may have pending effects.
 // @param flags - The current flags on the subscriber to check.
-func (rs *ReactiveSystem) processPendingInnerEffects(sub subscriber, flags subscriberFlags) {
+func (rs *ReactiveSystem) processPendingInnerEffects(sub *signal, flags subscriberFlags) {
 	if flags&fPendingEffect != 0 {
-		sub.setFlags(flags & ^fPendingEffect)
-		link := sub.deps()
+		sub.flags = flags & ^fPendingEffect
+		link := sub.deps
 		for {
 			dep := link.dep
-			depSub, ok := dep.(dependencyAndSubscriber)
-			if ok {
-				flags := depSub.flags()
-				if flags&fEffect != 0 && flags&fPropagated != 0 {
-					effect, ok := depSub.(*EffectRunner)
-					if !ok {
-						panic("not an effect")
-					}
-					rs.notifyEffect(effect)
-				}
+			flags = dep.flags
+			if flags&fEffect != 0 && flags&fPropagated != 0 {
+				rs.notifyEffect(dep)
 			}
 			link = link.nextDep
 
@@ -136,30 +131,13 @@ func (rs *ReactiveSystem) processPendingInnerEffects(sub subscriber, flags subsc
 // notifications may be triggered until fully handled.
 func (rs *ReactiveSystem) processEffectNotifications() {
 	for rs.queuedEffects != nil {
-		e := rs.queuedEffects
-		depsTail := e.depsTail()
-		queueNext := depsTail.nextDep
-		if queueNext != nil {
-			depsTail.nextDep = nil
-			effect, ok := queueNext.sub.(*EffectRunner)
-			if !ok {
-				panic("not an effect")
-			}
-			rs.queuedEffects = effect
-		} else {
-			rs.queuedEffects = nil
+		effect := rs.queuedEffects.target
+		rs.queuedEffects = rs.queuedEffects.linked
+		if rs.queuedEffects == nil {
 			rs.queuedEffectsTail = nil
 		}
-		if !rs.notifyEffect(e) {
-			e.setFlags(e.flags() & ^fNotified)
+		if !rs.notifyEffect(effect) {
+			effect.flags = effect.flags & ^fNotified
 		}
 	}
-}
-
-func mustEffect(sub subscriber) *EffectRunner {
-	e, ok := sub.(*EffectRunner)
-	if !ok {
-		panic("not an effect")
-	}
-	return e
 }

@@ -1,7 +1,7 @@
 package alien
 
 type WriteableSignal[T comparable] struct {
-	baseDependency
+	signal
 	rs    *ReactiveSystem
 	value T
 }
@@ -10,7 +10,7 @@ func (s *WriteableSignal[T]) isSignalAware() {}
 
 func (s *WriteableSignal[T]) Value() T {
 	if s.rs.activeSub != nil {
-		s.rs.link(s, s.rs.activeSub)
+		s.rs.link(&s.signal, s.rs.activeSub)
 	}
 	return s.value
 }
@@ -20,7 +20,7 @@ func (s *WriteableSignal[T]) SetValue(v T) {
 		return
 	}
 	s.value = v
-	subs := s._subs
+	subs := s.signal.subs
 	if subs != nil {
 		s.rs.propagate(subs)
 		if s.rs.batchDepth == 0 {
@@ -31,8 +31,11 @@ func (s *WriteableSignal[T]) SetValue(v T) {
 
 func Signal[T comparable](rs *ReactiveSystem, initialValue T) *WriteableSignal[T] {
 	s := &WriteableSignal[T]{
-		rs:    rs,
-		value: initialValue,
+		rs:     rs,
+		value:  initialValue,
+		signal: signal{},
 	}
+	signal := &s.signal
+	signal.ref = s
 	return s
 }
