@@ -86,15 +86,13 @@ func updateComputed(rs *ReactiveSystem, c any) bool {
 // @param computed - The computed subscriber to update.
 // @param flags - The current flag set for this subscriber.
 func processComputedUpdate(rs *ReactiveSystem, computed computedAny, flags subscriberFlags) {
-	if flags&fDirty != 0 || func() bool {
+	dirty := flags&fDirty != 0
+	if !dirty {
 		sub := computed.sub()
-		isDirty := rs.checkDirty(sub.deps)
-		if isDirty {
-			return true
-		}
+		dirty = rs.checkDirty(sub.deps)
 		sub.flags = flags & ^fPendingComputed
-		return false
-	}() {
+	}
+	if dirty {
 		if updateComputed(rs, computed) {
 			subs := computed.dep().subs
 			if subs != nil {
