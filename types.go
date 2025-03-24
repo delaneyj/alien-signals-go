@@ -16,13 +16,10 @@ const (
 )
 
 type link struct {
-	dep dependency
-	sub subscriber
-	// reused to link the previous stack in updateDirtyFlags
-	// reused to link the previous stack in propagate
+	dep     dependency
+	sub     subscriber
 	prevSub *link
 	nextSub *link
-	// reused to link the notify effect in queueEffects
 	nextDep *link
 }
 
