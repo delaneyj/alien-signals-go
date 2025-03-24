@@ -6,6 +6,10 @@ type WriteableSignal[T comparable] struct {
 	value T
 }
 
+func (s *WriteableSignal[T]) dep() *baseDependency {
+	return &s.baseDependency
+}
+
 func (s *WriteableSignal[T]) isSignalAware() {}
 
 func (s *WriteableSignal[T]) Value() T {
@@ -20,7 +24,7 @@ func (s *WriteableSignal[T]) SetValue(v T) {
 		return
 	}
 	s.value = v
-	subs := s._subs
+	subs := s.baseDependency.subs
 	if subs != nil {
 		s.rs.propagate(subs)
 		if s.rs.batchDepth == 0 {
@@ -31,8 +35,9 @@ func (s *WriteableSignal[T]) SetValue(v T) {
 
 func Signal[T comparable](rs *ReactiveSystem, initialValue T) *WriteableSignal[T] {
 	s := &WriteableSignal[T]{
-		rs:    rs,
-		value: initialValue,
+		rs:             rs,
+		value:          initialValue,
+		baseDependency: baseDependency{},
 	}
 	return s
 }

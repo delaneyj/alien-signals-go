@@ -69,12 +69,12 @@ func (rs *ReactiveSystem) ResumeTracking() {
 // @param sub - The subscriber to update.
 // @param flags - The current flag set for this subscriber.
 // @returns `true` if the subscriber is marked as Dirty; otherwise `false`.
-func (rs *ReactiveSystem) updateDirtyFlag(sub subscriber, flags subscriberFlags) bool {
-	if rs.checkDirty(sub.deps()) {
-		sub.setFlags(flags | fDirty)
+func (rs *ReactiveSystem) updateDirtyFlag(sub *baseSubscriber, flags subscriberFlags) bool {
+	if rs.checkDirty(sub.deps) {
+		sub.flags = flags | fDirty
 		return true
 	}
-	sub.setFlags(flags & ^fPendingComputed)
+	sub.flags = flags & ^fPendingComputed
 	return false
 }
 
@@ -93,19 +93,21 @@ func (rs *ReactiveSystem) checkDirty(current *link) bool {
 top:
 	for {
 		dep := current.dep
-		dependencySubscriber, isDependencySubscriber := dep.(dependencyAndSubscriber)
+		dep2 := dep.dep()
+		dependencySubscriber, isDependencySubscriber := dep.(subscriber)
 		if isDependencySubscriber {
-			depFlags := dependencySubscriber.flags()
+			sub := dependencySubscriber.sub()
+			depFlags := sub.flags
 			if depFlags&(fComputed|fDirty) == fComputed|fDirty {
 				if updateComputed(rs, dep) {
-					subs := dep.subs()
+					subs := dep2.subs
 					if subs.nextSub != nil {
 						rs.shallowPropagate(subs)
 					}
 					for checkDepth != 0 {
 						checkDepth--
-						computed := current.sub.(dependencyAndSubscriber)
-						firstSub := computed.subs()
+						computed := current.sub.(dependency)
+						firstSub := computed.dep().subs
 
 						if updateComputed(rs, computed) {
 							if firstSub.nextSub != nil {
@@ -130,11 +132,11 @@ top:
 					}
 				}
 			} else if depFlags&(fComputed|fPendingComputed) == fComputed|fPendingComputed {
-				depSubs := dep.subs()
+				depSubs := dep2.subs
 				if depSubs.nextSub != nil {
 					depSubs.prevSub = current
 				}
-				current = dependencySubscriber.deps()
+				current = sub.deps
 				checkDepth++
 				continue
 			}
@@ -152,7 +154,9 @@ top:
 // @param sub - The subscriber that depends on this dependency.
 // @returns The newly created link object if the two are not already linked; otherwise `undefined`.
 func (rs *ReactiveSystem) link(dep dependency, sub subscriber) *link {
-	currentDep := sub.depsTail()
+	dep2 := dep.dep()
+	sub2 := sub.sub()
+	currentDep := sub2.depsTail
 	if currentDep != nil && currentDep.dep == dep {
 		return nil
 	}
@@ -161,15 +165,15 @@ func (rs *ReactiveSystem) link(dep dependency, sub subscriber) *link {
 	if currentDep != nil {
 		nextDep = currentDep.nextDep
 	} else {
-		nextDep = sub.deps()
+		nextDep = sub2.deps
 	}
 	if nextDep != nil && nextDep.dep == dep {
-		sub.setDepsTail(nextDep)
+		sub2.depsTail = nextDep
 		return nil
 	}
 
-	depLastSub := dep.subsTail()
-	if depLastSub != nil && depLastSub.sub == sub && rs.isValidLink(depLastSub, sub) {
+	depLastSub := dep2.subsTail
+	if depLastSub != nil && depLastSub.sub == sub && rs.isValidLink(depLastSub, sub2) {
 		return nil
 	}
 
@@ -185,10 +189,10 @@ func (rs *ReactiveSystem) link(dep dependency, sub subscriber) *link {
 // @param checkLink - The link object to validate.
 // @param sub - The subscriber whose link list is being checked.
 // @returns `true` if the link is found in the subscriber's list; otherwise `false`.
-func (rs *ReactiveSystem) isValidLink(checkLink *link, sub subscriber) bool {
-	depsTails := sub.depsTail()
+func (rs *ReactiveSystem) isValidLink(checkLink *link, sub *baseSubscriber) bool {
+	depsTails := sub.depsTail
 	if depsTails != nil {
-		link := sub.deps()
+		link := sub.deps
 		for {
 			if link == checkLink {
 				return true
@@ -217,6 +221,8 @@ func (rs *ReactiveSystem) isValidLink(checkLink *link, sub subscriber) bool {
 // @param depsTail - The current tail link in the subscriber's chain.
 // @returns The newly created link object.
 func (rs *ReactiveSystem) linkNewDep(dep dependency, sub subscriber, nextDep, depsTail *link) *link {
+	dep2 := dep.dep()
+	sub2 := sub.sub()
 	newLink := &link{
 		dep:     dep,
 		sub:     sub,
@@ -224,21 +230,21 @@ func (rs *ReactiveSystem) linkNewDep(dep dependency, sub subscriber, nextDep, de
 	}
 
 	if depsTail == nil {
-		sub.setDeps(newLink)
+		sub2.deps = newLink
 	} else {
 		depsTail.nextDep = newLink
 	}
 
-	if dep.subs() == nil {
-		dep.setSubs(newLink)
+	if dep2.subs == nil {
+		dep2.subs = newLink
 	} else {
-		oldTail := dep.subsTail()
+		oldTail := dep2.subsTail
 		newLink.prevSub = oldTail
 		oldTail.nextSub = newLink
 	}
 
-	sub.setDepsTail(newLink)
-	dep.setSubsTail(newLink)
+	sub2.depsTail = newLink
+	dep2.subsTail = newLink
 
 	return newLink
 }
@@ -259,27 +265,28 @@ func (rs *ReactiveSystem) propagate(current *link) {
 top:
 	for {
 		sub := current.sub
-		subFlags := sub.flags()
+		sub2 := sub.sub()
+		subFlags := sub2.flags
 		shouldNotify := false
 
 		if subFlags&(fTracking|fRecursed|fPropagated) == 0 {
-			sub.setFlags(subFlags | targetFlag | fNotified)
+			sub2.flags = subFlags | targetFlag | fNotified
 			shouldNotify = true
 		} else if subFlags&fRecursed != 0 && subFlags&fTracking == 0 {
-			sub.setFlags(subFlags&^fRecursed | targetFlag | fNotified)
+			sub2.flags = subFlags&^fRecursed | targetFlag | fNotified
 			shouldNotify = true
-		} else if subFlags&fPropagated == 0 && rs.isValidLink(current, sub) {
-			sub.setFlags(subFlags | fRecursed | targetFlag | fNotified)
-			subDep, ok := sub.(dependencyAndSubscriber)
-			shouldNotify = ok && subDep.subs() != nil
+		} else if subFlags&fPropagated == 0 && rs.isValidLink(current, sub2) {
+			sub2.flags = subFlags | fRecursed | targetFlag | fNotified
+			subDep, ok := sub.(dependency)
+			shouldNotify = ok && subDep.dep().subs != nil
 		}
 
 		if shouldNotify {
-			subDep, ok := sub.(dependencyAndSubscriber)
+			subDep, ok := sub.(dependency)
 			if !ok {
-				panic("not a dependencyAndSubscriber")
+				panic("not a dependency")
 			}
-			subSubs := subDep.subs()
+			subSubs := subDep.dep().subs
 			if subSubs != nil {
 				current = subSubs
 				if subSubs.nextSub != nil {
@@ -306,7 +313,7 @@ top:
 				}
 			}
 		} else if subFlags&(fTracking|targetFlag) == 0 {
-			sub.setFlags(subFlags | targetFlag | fNotified)
+			sub2.flags = subFlags | targetFlag | fNotified
 			if subFlags&(fEffect|fNotified) == fEffect {
 				if rs.queuedEffectsTail != nil {
 					rs.queuedEffectsTail.linked = &OneWayLink_subscriber{target: sub}
@@ -318,8 +325,8 @@ top:
 			}
 		} else if subFlags&targetFlag == 0 &&
 			subFlags&fPropagated != 0 &&
-			rs.isValidLink(current, sub) {
-			sub.setFlags(subFlags | targetFlag)
+			rs.isValidLink(current, sub2) {
+			sub2.flags = subFlags | targetFlag
 		}
 
 		if current = next; current != nil {
@@ -359,10 +366,11 @@ top:
 func (rs *ReactiveSystem) shallowPropagate(link *link) {
 	for {
 		sub := link.sub
-		subFlags := sub.flags()
+		sub2 := sub.sub()
+		subFlags := sub2.flags
 		justPendingDirty := subFlags & (fPendingComputed | fDirty)
 		if justPendingDirty == fPendingComputed {
-			sub.setFlags(subFlags | fDirty | fNotified)
+			sub2.flags = subFlags | fDirty | fNotified
 			if subFlags&(fEffect|fNotified) == fEffect {
 				if rs.queuedEffectsTail != nil {
 					rs.queuedEffectsTail.linked = &OneWayLink_subscriber{target: sub}
@@ -387,11 +395,11 @@ func (rs *ReactiveSystem) shallowPropagate(link *link) {
 // sets its flags to indicate it is now tracking dependency links.
 //
 // @param sub - The subscriber to start tracking.
-func (rs *ReactiveSystem) startTracking(sub subscriber) {
-	sub.setDepsTail(nil)
-	flags := sub.flags()
+func (rs *ReactiveSystem) startTracking(sub *baseSubscriber) {
+	sub.depsTail = nil
+	flags := sub.flags
 	revised := flags & ^(fNotified|fRecursed|fPropagated) | fTracking
-	sub.setFlags(revised)
+	sub.flags = revised
 }
 
 // Concludes tracking of dependencies for the specified subscriber.
@@ -400,8 +408,8 @@ func (rs *ReactiveSystem) startTracking(sub subscriber) {
 // updates the subscriber's flags to indicate tracking is complete.
 //
 // @param sub - The subscriber whose tracking is ending.
-func (rs *ReactiveSystem) endTracking(sub subscriber) {
-	depsTail := sub.depsTail()
+func (rs *ReactiveSystem) endTracking(sub *baseSubscriber) {
+	depsTail := sub.depsTail
 	if depsTail != nil {
 		nextDep := depsTail.nextDep
 		if nextDep != nil {
@@ -409,13 +417,13 @@ func (rs *ReactiveSystem) endTracking(sub subscriber) {
 			depsTail.nextDep = nil
 		}
 	} else {
-		deps := sub.deps()
+		deps := sub.deps
 		if deps != nil {
 			rs.clearTracking(deps)
 		}
-		sub.setDeps(nil)
+		sub.deps = nil
 	}
-	sub.setFlags(sub.flags() & ^fTracking)
+	sub.flags = sub.flags & ^fTracking
 }
 
 // Clears dependency-subscription relationships starting at the given link.
@@ -427,6 +435,7 @@ func (rs *ReactiveSystem) endTracking(sub subscriber) {
 func (rs *ReactiveSystem) clearTracking(link *link) {
 	for {
 		dep := link.dep
+		dep2 := dep.dep()
 		nextDep := link.nextDep
 		nextSub := link.nextSub
 		prevSub := link.prevSub
@@ -434,30 +443,31 @@ func (rs *ReactiveSystem) clearTracking(link *link) {
 		if nextSub != nil {
 			nextSub.prevSub = prevSub
 		} else {
-			dep.setSubsTail(prevSub)
+			dep2.subsTail = prevSub
 		}
 
 		if prevSub != nil {
 			prevSub.nextSub = nextSub
 		} else {
-			dep.setSubs(nextSub)
+			dep2.subs = nextSub
 		}
 
-		depSub, ok := dep.(dependencyAndSubscriber)
-		ss := dep.subs()
+		depSub, ok := dep.(subscriber)
+		ss := dep2.subs
 		if ss == nil && ok {
-			depFlags := depSub.flags()
+			depSub2 := depSub.sub()
+			depFlags := depSub2.flags
 			if depFlags&fDirty == 0 {
-				depSub.setFlags(depFlags | fDirty)
+				depSub2.flags = depFlags | fDirty
 			}
 
-			depDeps := depSub.deps()
+			depDeps := depSub2.deps
 			if depDeps != nil {
 				link = depDeps
-				dt := depSub.depsTail()
+				dt := depSub2.depsTail
 				dt.nextDep = nextDep
-				depSub.setDeps(nil)
-				depSub.setDepsTail(nil)
+				depSub2.deps = nil
+				depSub2.depsTail = nil
 				continue
 			}
 		}
