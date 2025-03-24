@@ -260,21 +260,21 @@ top:
 	for {
 		sub := current.sub
 		subFlags := sub.flags()
+		shouldNotify := false
 
-		if (subFlags&(fTracking|fRecursed|fPropagated) == 0 &&
-			func() bool {
-				sub.setFlags(subFlags | targetFlag | fNotified)
-				return true
-			}()) ||
-			(subFlags&fRecursed != 0 && subFlags&fTracking == 0 && func() bool {
-				sub.setFlags(subFlags&^fRecursed | targetFlag | fNotified)
-				return true
-			}()) ||
-			(subFlags&fPropagated == 0 && rs.isValidLink(current, sub) && func() bool {
-				sub.setFlags(subFlags | fRecursed | targetFlag | fNotified)
-				subDep, ok := sub.(dependencyAndSubscriber)
-				return ok && subDep.subs() != nil
-			}()) {
+		if subFlags&(fTracking|fRecursed|fPropagated) == 0 {
+			sub.setFlags(subFlags | targetFlag | fNotified)
+			shouldNotify = true
+		} else if subFlags&fRecursed != 0 && subFlags&fTracking == 0 {
+			sub.setFlags(subFlags&^fRecursed | targetFlag | fNotified)
+			shouldNotify = true
+		} else if subFlags&fPropagated == 0 && rs.isValidLink(current, sub) {
+			sub.setFlags(subFlags | fRecursed | targetFlag | fNotified)
+			subDep, ok := sub.(dependencyAndSubscriber)
+			shouldNotify = ok && subDep.subs() != nil
+		}
+
+		if shouldNotify {
 			subDep, ok := sub.(dependencyAndSubscriber)
 			if !ok {
 				panic("not a dependencyAndSubscriber")
