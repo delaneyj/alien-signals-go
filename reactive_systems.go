@@ -93,13 +93,13 @@ func (rs *ReactiveSystem) checkDirty(current *link) bool {
 top:
 	for {
 		dep := current.dep
-		dep2 := dep.dep()
-		dependencySubscriber, isDependencySubscriber := dep.(subscriber)
-		if isDependencySubscriber {
-			sub := dependencySubscriber.sub()
-			depFlags := sub.flags
-			if depFlags&(fComputed|fDirty) == fComputed|fDirty {
-				if updateComputed(rs, dep) {
+		sub, isSub := dep.(subscriber)
+		if isSub {
+			dep2 := dep.dep()
+			sub2 := sub.sub()
+			flags := sub2.flags
+			if flags&(fComputed|fDirty) == fComputed|fDirty {
+				if updateComputed(rs, sub) {
 					subs := dep2.subs
 					if subs.nextSub != nil {
 						rs.shallowPropagate(subs)
@@ -109,7 +109,7 @@ top:
 						computed := current.sub.(dependency)
 						firstSub := computed.dep().subs
 
-						if updateComputed(rs, computed) {
+						if updateComputed(rs, current.sub) {
 							if firstSub.nextSub != nil {
 								rs.shallowPropagate(firstSub)
 								current = prevLinks.target
@@ -131,12 +131,12 @@ top:
 						return false
 					}
 				}
-			} else if depFlags&(fComputed|fPendingComputed) == fComputed|fPendingComputed {
+			} else if flags&(fComputed|fPendingComputed) == fComputed|fPendingComputed {
 				depSubs := dep2.subs
 				if depSubs.nextSub != nil {
 					depSubs.prevSub = current
 				}
-				current = sub.deps
+				current = sub2.deps
 				checkDepth++
 				continue
 			}

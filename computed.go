@@ -33,12 +33,11 @@ func (s *ReadonlySignal[T]) Value() T {
 	return s.value
 }
 
-func (s *ReadonlySignal[T]) cas() (wasDifferent bool) {
+func (s *ReadonlySignal[T]) cas() bool {
 	oldValue := s.value
 	newValue := s.getter(oldValue)
-	wasDifferent = oldValue != newValue
 	s.value = newValue
-	return wasDifferent
+	return oldValue != newValue
 }
 
 func Computed[T comparable](rs *ReactiveSystem, getter func(oldValue T) T) *ReadonlySignal[T] {
@@ -58,22 +57,18 @@ type computedAny interface {
 	cas() (wasDifferent bool)
 }
 
-func updateComputed(rs *ReactiveSystem, c any) bool {
-	computed, ok := c.(computedAny)
-	if !ok {
-		panic("not a computedAny")
-	}
-
+func updateComputed(rs *ReactiveSystem, sub subscriber) bool {
 	prevSub := rs.activeSub
-	rs.activeSub = computed
-	sub := computed.sub()
-	rs.startTracking(sub)
+	rs.activeSub = sub
+	sub2 := sub.sub()
+	rs.startTracking(sub2)
 
 	defer func() {
 		rs.activeSub = prevSub
-		rs.endTracking(sub)
+		rs.endTracking(sub2)
 	}()
 
+	computed := sub.(computedAny)
 	return computed.cas()
 }
 
