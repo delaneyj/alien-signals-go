@@ -1,8 +1,7 @@
 package alien
 
 type ReadonlySignal[T comparable] struct {
-	baseSubscriber
-	baseDependency
+	signal
 
 	rs     *ReactiveSystem
 	value  T
@@ -12,59 +11,55 @@ type ReadonlySignal[T comparable] struct {
 func (s *ReadonlySignal[T]) isSignalAware() {}
 
 func (s *ReadonlySignal[T]) Value() T {
-	flags := s._flags
+	flags := s.flags
+	signal := &s.signal
 	if flags&(fDirty|fPendingComputed) != 0 {
-		processComputedUpdate(s.rs, s, flags)
+		processComputedUpdate(s.rs, signal, flags)
 	}
 	if s.rs.activeSub != nil {
-		s.rs.link(s, s.rs.activeSub)
+		s.rs.link(signal, s.rs.activeSub)
 	} else if s.rs.activeScope != nil {
-		s.rs.link(s, s.rs.activeScope)
+		s.rs.link(signal, s.rs.activeScope)
 	}
 
 	return s.value
 }
 
-func (s *ReadonlySignal[T]) cas() (wasDifferent bool) {
+func (s *ReadonlySignal[T]) cas() bool {
 	oldValue := s.value
 	newValue := s.getter(oldValue)
-	wasDifferent = oldValue != newValue
 	s.value = newValue
-	return wasDifferent
+	return oldValue != newValue
 }
 
 func Computed[T comparable](rs *ReactiveSystem, getter func(oldValue T) T) *ReadonlySignal[T] {
 	c := &ReadonlySignal[T]{
 		rs:     rs,
 		getter: getter,
-		baseSubscriber: baseSubscriber{
-			_flags: fComputed | fDirty,
+		signal: signal{
+			flags: fComputed | fDirty,
 		},
 	}
+	signal := &c.signal
+	signal.ref = c
 	return c
 }
 
 type computedAny interface {
-	dependencyAndSubscriber
 	cas() (wasDifferent bool)
 }
 
-func updateComputed(rs *ReactiveSystem, c any) bool {
-	computed, ok := c.(computedAny)
-	if !ok {
-		panic("not a computedAny")
-	}
-
+func updateComputed(rs *ReactiveSystem, signal *signal) bool {
 	prevSub := rs.activeSub
-	rs.activeSub = computed
-	rs.startTracking(computed)
+	rs.activeSub = signal
+	rs.startTracking(signal)
 
 	defer func() {
 		rs.activeSub = prevSub
-		rs.endTracking(computed)
+		rs.endTracking(signal)
 	}()
 
-	return computed.cas()
+	return signal.ref.(computedAny).cas()
 }
 
 // Updates the computed subscriber if necessary before its value is accessed.
@@ -75,20 +70,15 @@ func updateComputed(rs *ReactiveSystem, c any) bool {
 //
 // @param computed - The computed subscriber to update.
 // @param flags - The current flag set for this subscriber.
-func processComputedUpdate(rs *ReactiveSystem, computed computedAny, flags subscriberFlags) {
-	if flags&fDirty != 0 || func() bool {
-		isDirty := rs.checkDirty(computed.deps())
-		if isDirty {
-			return true
-		}
-		computed.setFlags(flags & ^fPendingComputed)
-		return false
-	}() {
-		if updateComputed(rs, computed) {
-			subs := computed.subs()
+func processComputedUpdate(rs *ReactiveSystem, signal *signal, flags subscriberFlags) {
+	if flags&fDirty != 0 || rs.checkDirty(signal.deps) {
+		if updateComputed(rs, signal) {
+			subs := signal.subs
 			if subs != nil {
 				rs.shallowPropagate(subs)
 			}
 		}
+	} else {
+		signal.flags = flags & ^fPendingComputed
 	}
 }
