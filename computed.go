@@ -71,17 +71,14 @@ func updateComputed(rs *ReactiveSystem, signal *signal) bool {
 // @param computed - The computed subscriber to update.
 // @param flags - The current flag set for this subscriber.
 func processComputedUpdate(rs *ReactiveSystem, signal *signal, flags subscriberFlags) {
-	dirty := flags&fDirty != 0
-	if !dirty {
-		dirty = rs.checkDirty(signal.deps)
-		signal.flags = flags & ^fPendingComputed
-	}
-	if dirty {
+	if flags&fDirty != 0 || rs.checkDirty(signal.deps) {
 		if updateComputed(rs, signal) {
 			subs := signal.subs
 			if subs != nil {
 				rs.shallowPropagate(subs)
 			}
 		}
+	} else {
+		signal.flags = flags & ^fPendingComputed
 	}
 }
